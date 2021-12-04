@@ -1,0 +1,4 @@
+# Ignore intellij files
+.idea/
+venv/
+

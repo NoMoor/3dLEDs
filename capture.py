@@ -46,12 +46,9 @@ def wheel(pos):
         return Color(0, pos * 3, 255 - pos * 3)
 
 
-def one_by_one(strip, base_path="captures", angle=0, wait_ms=1500, dry_run=False, start=0):
+def one_by_one(strip, folder="captures", angle=0, wait_ms=1500, dry_run=False, start=0):
     """Lights up the strand one pixel at a time."""
     color_wipe(strip, LED_OFF, 1)
-    folder = os.path.join(base_path, f"{angle:03}")
-    if not os.path.exists(folder):
-        os.makedirs(folder)
 
     # initialize the camera
     cam = cv2.VideoCapture(0) if not dry_run else None # 0 -> index of camera
@@ -61,20 +58,34 @@ def one_by_one(strip, base_path="captures", angle=0, wait_ms=1500, dry_run=False
         strip.show()
         time.sleep(wait_ms / 1000.0)
 
-        filename = os.path.join(folder, f"{i:03}.jpg")
-        print(f"Writing file {filename}", end="\r")
+        filename = os.path.join(folder, f"led{i:03}_angle{angle:03}.jpg")
+        _capture_image(cam, filename)
 
-        if cam:
-            s, img = cam.read()
-            if s:  # frame captured without any errors
-                cv2.imwrite(filename, img)  # save image
-
-        time.sleep(wait_ms / 1000.0)
+        time.sleep(0.1)
         strip.setPixelColor(i, LED_OFF)
         strip.show()
         time.sleep(.05)
 
-    print()
+    color_wipe(strip, LED_WHITE, 1)
+    time.sleep(wait_ms / 1000.0)
+    _capture_image(cam, os.path.join(folder, f"leds_angle{angle:03}.jpg"))
+    color_wipe(strip, LED_OFF, 1)
+    time.sleep(0.1)
+
+
+def _capture_image(cam, filename):
+    if cam:
+        s, img = cam.read()
+        if s:  # frame captured without any errors
+            print(f"Writing file {filename}")
+            cv2.imwrite(filename, img)  # save image
+
+
+def _capture_reference(folder, angle=None):
+    # initialize the camera
+    cam = cv2.VideoCapture(0)
+    file_name = os.path.join(folder, f"reference_{angle:03}.jpg")
+    _capture_image(cam, file_name)
 
 
 def main():
@@ -99,13 +110,18 @@ def main():
         print('Use "-p" argument to keep LEDs lit on exit')
 
     try:
+        folder = args.folder
+        if not os.path.exists(folder):
+            os.makedirs(folder)
 
-        # angles = [0, 45, 90, 135, 180, 225, 270, 315]
-        angles = [0, 45, 135, 180]
+        angles = [0, 45, 90, 135, 180, 225, 270, 315]
 
         for a in angles:
+            input(f"Press Enter to capture lights-on image {a} degrees.")
+            _capture_reference(folder, angle=a)
+
             input(f"Press Enter to capture tree at {a} degrees.")
-            one_by_one(strip, base_path=args.folder, angle=a, dry_run=args.dry_run, start=args.start_index)
+            one_by_one(strip, folder=folder, angle=a, dry_run=args.dry_run, start=args.start_index)
 
     except KeyboardInterrupt:
         # Catch interrupt
