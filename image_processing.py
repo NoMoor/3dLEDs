@@ -18,14 +18,14 @@ def detect_light_location(image):
     image = image.convert("L")
     im_arr = np.array(image)
     # testing to see how the grayscale looks
-    save_image(im_arr, "processed", "grayscale_test1")
+    # save_image(im_arr, "processed", "grayscale_test1")
 
     height = len(im_arr)
     width = len(im_arr[0])
 
     im_arr = threshold(im_arr, height, width)
     # testing darkening
-    save_image(im_arr, "processed", "grayscale_darkened_test1")
+    # save_image(im_arr, "processed", "grayscale_darkened_test1")
 
     # find the the center of the led
     diameter = 0
@@ -44,10 +44,10 @@ def detect_light_location(image):
 
     im_arr = draw_arrow(im_arr, led_row, led_col, diameter, width, height)
 
-    save_image(im_arr, "processed", "grayscale_led_located_test1")
+    # save_image(im_arr, "processed", "grayscale_led_located_test1")
+    return im_arr
 
-
-    result = PIL.Image.fromarray(np.uint8(im_arr))
+    # result = PIL.Image.fromarray(np.uint8(im_arr))
 
 
 def draw_arrow(im_arr, led_row, led_col, diameter, width, height):
@@ -109,6 +109,12 @@ def save_image(im_arr, folder, filename):
     full_filename = os.path.join(directory, filename + '.png')
     img.save(full_filename)
 
+# detect_light_location(test_image)
 
+led_num = 30
+angle = 0
 
-detect_light_location(test_image)
+for i in range(20):
+    test_image = PIL.Image.open("captures/led0" + str(led_num + i) + "_angle000.jpg")
+    img_arr = detect_light_location(test_image)
+    save_image(img_arr, "processed", "led0" + str(led_num + i) + "_angle000_identified")
