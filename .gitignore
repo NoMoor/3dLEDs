@@ -1,4 +1,5 @@
 # Ignore intellij files
 .idea/
 venv/
+*captures/
 

@@ -16,3 +16,10 @@ one rotation, it will be in all of them.
 
 NOTE: In some cases, the captured image may be completely black. This likely indicates that the LED is
 obscured by whatever it is hanging on.
+
+# Captured Images
+
+Instead of including all images in the git repo, images of the tree have been moved to Google Drive.
+
+https://drive.google.com/drive/folders/1jmmNhNl4d18Hpue5HqjxG8EZfJDkkLYr
+
