@@ -23,3 +23,11 @@ Instead of including all images in the git repo, images of the tree have been mo
 
 https://drive.google.com/drive/folders/1jmmNhNl4d18Hpue5HqjxG8EZfJDkkLYr
 
+# Process Images
+
+The process images script currently outputs updated images with an indicator of the selected point. 
+This is intended to be used for checking the results.
+
+Script currently uses PIL, OpenCV, NumPy, and MatPlotLib as dependencies.
+
+`python3 image_processing.py -s 0 -e 500 -i "/home/nomoor/Pictures/tree_captures" -o "/home/nomoor/Pictures/processed_tree_captures"`

@@ -1,9 +1,9 @@
 import numpy as np
-import PIL
+from PIL import Image, ImageDraw, ImageFont
 import matplotlib.pyplot as plt
 import os
+import argparse
 
-test_image = PIL.Image.open("captures/led030_angle000.jpg")
 
 # code to show an image
 # img = plt.imread("captures/led030_angle000.jpg")
@@ -15,8 +15,8 @@ THRESHOLD_VALUE = 200
 ARROW_LENGTH = 50
 
 def detect_light_location(image):
-    image = image.convert("L")
-    im_arr = np.array(image)
+    gray = image.convert("L")
+    im_arr = np.array(gray)
     # testing to see how the grayscale looks
     # save_image(im_arr, "processed", "grayscale_test1")
 
@@ -42,15 +42,18 @@ def detect_light_location(image):
             continue
         break
 
-    im_arr = draw_arrow(im_arr, led_row, led_col, diameter, width, height)
+#     im_arr = draw_arrow(im_arr, led_row, led_col, diameter)
 
     # save_image(im_arr, "processed", "grayscale_led_located_test1")
-    return im_arr
+    return led_row, led_col, diameter
 
     # result = PIL.Image.fromarray(np.uint8(im_arr))
 
 
-def draw_arrow(im_arr, led_row, led_col, diameter, width, height):
+def draw_arrow(im_arr, led_row, led_col, diameter):
+    height = len(im_arr)
+    width = len(im_arr[0])
+
     r = led_row - diameter // 2
     c = led_col
     length = ARROW_LENGTH
@@ -82,6 +85,20 @@ def draw_arrow(im_arr, led_row, led_col, diameter, width, height):
     return im_arr
 
 
+def draw_cross(image, row, col):
+    img_draw = ImageDraw.Draw(image)
+
+    horizontal = [(0, row), (image.size[0], row)]
+    vertical = [(col, 0), (col, image.size[1])]
+
+    img_draw.line(horizontal, fill="rgb(0, 255, 0)", width=2)
+    img_draw.line(vertical, fill="rgb(0, 255, 0)", width=2)
+
+    img_draw.text((col + 10, row + 10), f"{row}, {col}", fill="rgb(0, 255, 0)")
+
+    return image
+
+
 def diag_span(im_arr, row, col, height, width):
     pixel = im_arr[row][col]
     if row + 1 == height or col + 1 == width:
@@ -95,26 +112,50 @@ def diag_span(im_arr, row, col, height, width):
             diameter += 1
     return diameter
 
+
 def threshold(im_arr, height, width):
     for row in range(height):
         for col in range(width):
-            if(im_arr[row][col] < THRESHOLD_VALUE):
+            if im_arr[row][col] < THRESHOLD_VALUE:
                 im_arr[row][col] = 0
     return im_arr
 
+
 def save_image(im_arr, folder, filename):
-    directory = os.getcwd()
-    directory = os.path.join(directory, folder)
-    img = PIL.Image.fromarray(np.uint8(im_arr))
-    full_filename = os.path.join(directory, filename + '.png')
+    img = Image.fromarray(np.uint8(im_arr))
+
+    if not os.path.exists(folder):
+        os.makedirs(folder)
+
+    full_filename = os.path.join(folder, filename)
     img.save(full_filename)
 
-# detect_light_location(test_image)
 
-led_num = 30
-angle = 0
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-s', '--start-index', type=int, default=0, help='The index of the first LED to use.')
+    parser.add_argument('-e', '--end-index', type=int, default=500, help='The index of the last LED to use.')
+    parser.add_argument('-i', '--input-folder', type=str, help='The relative folder for input files')
+    parser.add_argument('-o', '--output-folder', type=str, help='The relative folder for output files')
+    args = parser.parse_args()
 
-for i in range(20):
-    test_image = PIL.Image.open("captures/led0" + str(led_num + i) + "_angle000.jpg")
-    img_arr = detect_light_location(test_image)
-    save_image(img_arr, "processed", "led0" + str(led_num + i) + "_angle000_identified")
+    for angle in [0, 45, 90, 135, 180, 225, 270, 315]:
+        for i in range(args.start_index, args.end_index + 1):
+            input_file_name = os.path.join(args.input_folder, f"led{i:03}_angle{angle:03}.jpg")
+
+            if not os.path.exists(input_file_name):
+                print(f"Skipping {input_file_name}. File not found.")
+                continue
+
+            print(f"Processing {input_file_name}")
+
+            test_image = Image.open(input_file_name)
+
+            row, col, _ = detect_light_location(test_image)
+            processed_image = draw_cross(test_image, row, col)
+            save_image(processed_image, args.output_folder, f"processed_led{i:03}_angle{angle:03}.jpg")
+
+
+# Main program logic follows:
+if __name__ == '__main__':
+    main()
