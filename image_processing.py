@@ -139,8 +139,8 @@ def main():
     parser.add_argument('-o', '--output-folder', type=str, help='The relative folder for output files')
     args = parser.parse_args()
 
-    for angle in [0, 45, 90, 135, 180, 225, 270, 315]:
-        for i in range(args.start_index, args.end_index + 1):
+    for i in range(args.start_index, args.end_index + 1):
+        for angle in [0, 45, 90, 135, 180, 225, 270, 315]:
             input_file_name = os.path.join(args.input_folder, f"led{i:03}_angle{angle:03}.jpg")
 
             if not os.path.exists(input_file_name):
