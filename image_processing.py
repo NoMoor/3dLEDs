@@ -1,3 +1,5 @@
+import sys
+
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 import matplotlib.pyplot as plt
@@ -139,21 +141,29 @@ def main():
     parser.add_argument('-o', '--output-folder', type=str, help='The relative folder for output files')
     args = parser.parse_args()
 
-    for i in range(args.start_index, args.end_index + 1):
-        for angle in [0, 45, 90, 135, 180, 225, 270, 315]:
-            input_file_name = os.path.join(args.input_folder, f"led{i:03}_angle{angle:03}.jpg")
+    if not os.path.exists(args.output_folder):
+        print(f"Folder `{args.output_folder}` doesn't exist. Exiting...")
+        sys.exit()
 
-            if not os.path.exists(input_file_name):
-                print(f"Skipping {input_file_name}. File not found.")
-                continue
+    with open(os.path.join(args.output_folder, "processed_data.txt"), 'a') as f:
+        for i in range(args.start_index, args.end_index + 1):
+            for angle in [0, 45, 90, 135, 180, 225, 270, 315]:
+                input_file_name = os.path.join(args.input_folder, f"led{i:03}_angle{angle:03}.jpg")
 
-            print(f"Processing {input_file_name}")
+                if not os.path.exists(input_file_name):
+                    print(f"Skipping {input_file_name}. File not found.")
+                    continue
 
-            test_image = Image.open(input_file_name)
+                print(f"Processing {input_file_name}")
 
-            row, col, _ = detect_light_location(test_image)
-            processed_image = draw_cross(test_image, row, col)
-            save_image(processed_image, args.output_folder, f"processed_led{i:03}_angle{angle:03}.jpg")
+                test_image = Image.open(input_file_name)
+
+                row, col, _ = detect_light_location(test_image)
+
+                f.write(f"id{i:03},angle{angle:03}-x{col:04},y{row:04}\n")
+
+                processed_image = draw_cross(test_image, row, col)
+                save_image(processed_image, args.output_folder, f"processed_led{i:03}_angle{angle:03}.jpg")
 
 
 # Main program logic follows:
