@@ -173,8 +173,15 @@ def main():
 #         time.sleep(5) # Wait 10 seconds to make sure the camera is ready
 
         for a in angles:
+            # Turn on reference pixels
+            strip.setPixelColor(0, LED_WHITE)
+            strip.setPixelColor(20, Color(255, 0, 0))
+            strip.setPixelColor(40, Color(0, 255, 0))
+            strip.setPixelColor(60, Color(0, 0, 255))
+            strip.show()
             input(f"Press Enter to capture lights-on image {a} degrees.")
             _capture_reference(cam, folder, angle=a)
+            fill(strip)
 
             input(f"Press Enter to capture tree at {a} degrees.")
             one_by_one(strip, cam, folder=folder, angle=a, dry_run=args.dry_run, start=args.start_index)

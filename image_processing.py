@@ -1,8 +1,7 @@
 import sys
 
 import numpy as np
-from PIL import Image, ImageDraw, ImageFont
-import matplotlib.pyplot as plt
+from PIL import Image, ImageDraw
 import os
 import argparse
 
