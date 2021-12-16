@@ -28,25 +28,32 @@ def fill(strip, color=LED_OFF):
 
 # Define functions which animate LEDs in various ways.
 def fillByHeight(strip, coordinates):
-    min_height = min(coordinates.values(), key=lambda c: c[2])[2]
-    max_height = max(coordinates.values(), key=lambda c: c[2])[2]
     speed = 2
     width = 300
     half_band = width / 2
-    max_brightness = 60
+    max_brightness = 40
     green_adjust = .5
 
-    for i in range(min_height, max_height, speed):
+    for i in range(0, width * 2, speed):
         for ledid, coord in coordinates.items():
             # Distance from the given coordinate
-            dist = abs(i - coord[2]) % width
+            x = coord[0]
+            z = coord[2]
 
-            brightness = max_brightness - int(max_brightness * dist/half_band)
-            if brightness > 0:
-                strip.setPixelColor(ledid, Color(0, min(brightness, max_brightness), 0))
+            dist = (z - i) % (width * 2)
+
+            is_red = 0 < dist < width
+
+            brightness_modifier = 1 - abs(((dist % width) - half_band) / half_band)
+            # brightness_modifier = abs(((dist % width) - half_band) / half_band)
+            brightness = int(brightness_modifier * max_brightness)
+
+            if is_red:
+                strip.setPixelColor(ledid, Color(0, brightness, 0))
             else:
-                strip.setPixelColor(ledid, Color(int(max(abs(brightness), max_brightness) * green_adjust), 0, 0))
+                strip.setPixelColor(ledid, Color(int(brightness * green_adjust), 0, 0))
         strip.show()
+        time.sleep(10/1000.0)
 
 
 def main():
