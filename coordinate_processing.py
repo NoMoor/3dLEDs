@@ -1,13 +1,75 @@
 import argparse
+import csv
 import os
 import sys
 from collections import namedtuple
 from statistics import mean
+import matplotlib.pyplot as plt
 
-Snap = namedtuple("Snap", "id angle x y")
-Coord = namedtuple("Coord", "id x y z")
+Snap = namedtuple("Snap", "led_id angle x y")
+Coord = namedtuple("Coord", "led_id x y z")
 
 IMAGE_WIDTH = 1080
+
+
+def draw(og_leds, alt_leds):
+    fig = plt.figure()
+    ax = fig.add_subplot(projection='3d')
+
+    alt_ids = set(filter(lambda x: x.led_id, alt_leds))
+
+    left_out = []
+
+    xs = []
+    ys = []
+    zs = []
+    for led in og_leds:
+        if led.led_id in alt_ids:
+            continue
+
+        if led.x == 0 or led.y == 0:
+            left_out.append(led)
+            continue
+
+        xs.append(led.x)
+        ys.append(led.y)
+        zs.append(led.z)
+
+    ax.plot3D(xs, ys, zs, 'gray')
+
+    xs = []
+    ys = []
+    zs = []
+    for led in alt_leds:
+        xs.append(led.x)
+        ys.append(led.y)
+        zs.append(led.z)
+
+    ax.scatter(xs, ys, zs, marker='^')
+
+    xs = []
+    ys = []
+    zs = []
+    for led in left_out:
+        xs.append(led.x)
+        ys.append(led.y)
+        zs.append(led.z)
+
+    ax.scatter(xs, ys, zs, marker='o')
+
+    ax.set_xlabel('X')
+    ax.set_ylabel('Y')
+    ax.set_zlabel('Z')
+    ax.set_box_aspect((9, 9, 16))
+
+    plt.gca().invert_zaxis()
+
+    plt.show()
+
+
+def avg(a, b):
+    return int((a+b)/2)
+
 
 def main():
     parser = argparse.ArgumentParser()
@@ -43,42 +105,80 @@ def main():
         shot.setdefault(led_id, []).append(Snap(led_id, angle, x, y))
 
     # Calculate the coordinates
-    missing = []
+    missingx = []
+    missingy = []
     for k in shot.keys():
         led_id = k
 
         filtered_list = list(filter(lambda s: s.x != 0 and s.y != 0, shot[k]))
 
-        if len(filtered_list) < 2:
-            print(f"Only {len(filtered_list)} point for {led_id}")
-
         z = mean(map(lambda s: s.y, shot[k]))
 
         ys = list(filter(lambda s: s.angle in [90, 270], filtered_list))
         if not ys:
-            missing.append(led_id)
+            missingy.append(led_id)
             y = 0
         else:
             y = ys[0].x if ys[0].angle == 270 else IMAGE_WIDTH - ys[0].x
 
         xs = list(filter(lambda s: s.angle in [0, 180], filtered_list))
         if not xs:
-            missing.append(led_id)
+            missingx.append(led_id)
             x = 0
         else:
             x = xs[0].x if xs[0].angle == 0 else IMAGE_WIDTH - xs[0].x
 
         coordinates[led_id] = Coord(led_id, x, y, int(z))
 
+    print(f"Missing x: {len(missingx)}")
+    print()
+    print(f"Missing y: {len(missingy)}")
+
+    fixed = []
+    for k, v in coordinates.items():
+        if v.x == 0 or v.y == 0:
+            if not reliable_neighbors(k, coordinates):
+                continue
+
+            pn = coordinates.get(k - 1)
+            nn = coordinates.get(k + 1)
+            # Interpolate between these
+            # TODO: Maybe keep the x/y if it exists?
+            fixed_point = Coord(k, avg(pn.x, nn.x), avg(pn.y, nn.y), avg(pn.z, nn.z))
+
+            fixed.append(fixed_point)
+
+            coordinates[k] = fixed_point
+
+
+    for k, v in coordinates.items():
+        if v.x == 0 and v.y == 0:
+            if not reliable_neighbors(k, coordinates):
+                print(f"{k} is unfixable")
+
+    print()
+    # print(f"Fixed Neighbors: {list(map(lambda x: x.led_id, fixed))}")
+    print(f"Fixed with Neighbors: {len(fixed)}")
+
     # Write the output to file
     with open(args.output_file, 'w') as output_file:
-        output_file.write("#")
+        csvwriter = csv.writer(output_file)
+        csvwriter.writerow(("id", "x", "y", "z"))
         for k, v in coordinates.items():
-            c = f"{v.id},{v.x},{v.y},{v.z}"
-            output_file.write(c + "\n")
-            print(c)
+            csvwriter.writerow(v)
 
-    print(f"Missing elements: {len(missing)}")
+    try:
+        draw(coordinates.values(), fixed)
+
+    except KeyboardInterrupt:
+        pass
+
+
+def reliable_neighbors(led_id, coordinates):
+    pn = coordinates.get(led_id - 1)
+    nn = coordinates.get(led_id + 1)
+    return pn and nn and pn.x > 0 and pn.y > 0 and nn.x > 0 and nn.y > 0
+
 
 # Main program logic follows:
 if __name__ == '__main__':
