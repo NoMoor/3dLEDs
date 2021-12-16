@@ -43,25 +43,28 @@ def main():
         shot.setdefault(led_id, []).append(Snap(led_id, angle, x, y))
 
     # Calculate the coordinates
-    missing_count = 0
+    missing = []
     for k in shot.keys():
         led_id = k
 
         filtered_list = list(filter(lambda s: s.x != 0 and s.y != 0, shot[k]))
 
+        if len(filtered_list) < 2:
+            print(f"Only {len(filtered_list)} point for {led_id}")
+
         z = mean(map(lambda s: s.y, shot[k]))
 
         ys = list(filter(lambda s: s.angle in [90, 270], filtered_list))
         if not ys:
-            missing_count += 1
-            continue
+            missing.append(led_id)
+            y = 0
         else:
             y = ys[0].x if ys[0].angle == 270 else IMAGE_WIDTH - ys[0].x
 
         xs = list(filter(lambda s: s.angle in [0, 180], filtered_list))
         if not xs:
-            missing_count += 1
-            continue
+            missing.append(led_id)
+            x = 0
         else:
             x = xs[0].x if xs[0].angle == 0 else IMAGE_WIDTH - xs[0].x
 
@@ -75,7 +78,7 @@ def main():
             output_file.write(c + "\n")
             print(c)
 
-    print(f"Missing elements: {missing_count}")
+    print(f"Missing elements: {len(missing)}")
 
 # Main program logic follows:
 if __name__ == '__main__':
