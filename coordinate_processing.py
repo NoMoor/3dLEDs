@@ -265,7 +265,7 @@ def main():
             csvwriter.writerow(v)
 
     try:
-        draw(coordinates.values(), [fixed_45, fixed_neighbor], limit=[0, 500], with_labels=True)
+        draw(coordinates.values(), [fixed_45, fixed_neighbor], limit=[0, 500], with_labels=False)
 
     except KeyboardInterrupt:
         pass
