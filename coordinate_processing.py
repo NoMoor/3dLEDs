@@ -3,73 +3,131 @@ import csv
 import os
 import sys
 from collections import namedtuple
-from statistics import mean
+from statistics import mean, median
 import matplotlib.pyplot as plt
+import numpy as np
+from scipy.spatial.transform import Rotation as R
 
 Snap = namedtuple("Snap", "led_id angle x y")
 Coord = namedtuple("Coord", "led_id x y z")
 
+IMAGE_HEIGHT = 1920
 IMAGE_WIDTH = 1080
 
 
-def draw(og_leds, alt_leds):
+def draw(og_leds, fixed_leds=None, limit=None, with_labels=False):
+    if not fixed_leds:
+        fixed_leds = []
+
+    if not limit:
+        limit = [0, len(og_leds) - 1]
+
     fig = plt.figure()
     ax = fig.add_subplot(projection='3d')
 
-    alt_ids = set(filter(lambda x: x.led_id, alt_leds))
+    fixes = []
+    for x in fixed_leds:
+        fixes.extend(x)
+    alt_ids = set(map(lambda l: l.led_id, fixes))
 
-    left_out = []
+    partially_missing = []
 
     xs = []
     ys = []
     zs = []
+    labels = []
+
     for led in og_leds:
         if led.led_id in alt_ids:
             continue
 
+        # If something is partially missing, don't plot it in the main line.
         if led.x == 0 or led.y == 0:
-            left_out.append(led)
+            partially_missing.append(led)
             continue
 
-        xs.append(led.x)
-        ys.append(led.y)
-        zs.append(led.z)
+        if limit[0] <= led.led_id <= limit[1]:
+            labels.append(led.led_id)
+            xs.append(led.x)
+            ys.append(led.y)
+            zs.append(led.z)
 
-    ax.plot3D(xs, ys, zs, 'gray')
+    ax.scatter(xs, ys, zs, 'gray')
 
+    if with_labels:
+        for i, txt in enumerate(labels):
+            ax.text(xs[i], ys[i], zs[i], txt)
+
+    # Plot different groups where there was additional processing separately.
+    markers = ['^', 'o', 's']
+    for i, fix in enumerate(fixed_leds):
+        xs = []
+        ys = []
+        zs = []
+        labels = []
+        for led in fix:
+            if limit[0] <= led.led_id <= limit[1]:
+                labels.append(led.led_id)
+                xs.append(led.x)
+                ys.append(led.y)
+                zs.append(led.z)
+
+        ax.scatter(xs, ys, zs, marker=markers[i])
+
+        if with_labels:
+            for i, txt in enumerate(labels):
+                ax.text(xs[i], ys[i], zs[i], txt)
+
+    # Plot others
     xs = []
     ys = []
     zs = []
-    for led in alt_leds:
+    for led in partially_missing:
         xs.append(led.x)
         ys.append(led.y)
         zs.append(led.z)
 
-    ax.scatter(xs, ys, zs, marker='^')
-
-    xs = []
-    ys = []
-    zs = []
-    for led in left_out:
-        xs.append(led.x)
-        ys.append(led.y)
-        zs.append(led.z)
-
-    ax.scatter(xs, ys, zs, marker='o')
+    ax.scatter(xs, ys, zs, marker='.')
 
     ax.set_xlabel('X')
+    ax.set_xlim([0, IMAGE_HEIGHT])
     ax.set_ylabel('Y')
+    ax.set_ylim([0, IMAGE_WIDTH])
     ax.set_zlabel('Z')
+    ax.set_zlim([0, IMAGE_HEIGHT])
     ax.set_box_aspect((9, 9, 16))
 
     plt.gca().invert_zaxis()
+    plt.gca().invert_yaxis()
 
     plt.show()
 
 
-def avg(a, b):
-    return int((a+b)/2)
+def avg(a, b, offset=2):
+    diff = b - a
+    return int(a + diff // offset)
 
+def extract_z(shots):
+    # TODO: I'm not totally sure this works or is needed.
+    s = shots[0]
+
+    # 1 means far from the center vertically
+    z_diff = ((500 - s.y) / (IMAGE_HEIGHT // 2))
+    # print(f"z_diff {z_diff}")
+
+    # 1 means far from the center horizontally
+    midpoint_offset = abs(s.x - (IMAGE_WIDTH // 2))
+    x_diff = (midpoint_offset - 250) / 300
+    # print(f"x_diff {x_diff}")
+
+    net_offset = z_diff * x_diff
+    z_shift = -50
+
+    shift = int(z_shift * net_offset)
+
+    # print(f"Shift [{s.x},{s.y}] by {shift}")
+
+    return s.y + shift
 
 def main():
     parser = argparse.ArgumentParser()
@@ -89,76 +147,115 @@ def main():
     shot = {}
 
     # Parse the lines and filter ones we don't want to consider.
-    for l in lines:
-        # print(l)
-        led_id = int(l[2:5])
-        # print(f"id {id}")
-        angle = int(l[11:14])
-        # print(f"angle {angle}")
-        x = int(l[16:20])
-        # print(f"x {x}")
-        y = int(l[22:26])
-        # print(f"y {y}")
+    for line in lines:
+        led_id = int(line[2:5])
+        angle = int(line[11:14])
+        x = int(line[16:20])
+        y = int(line[22:26])
         if not x or not y:
             continue
 
         shot.setdefault(led_id, []).append(Snap(led_id, angle, x, y))
 
-    # Calculate the coordinates
-    missingx = []
-    missingy = []
+    # Go through the normal 0/90/180/270 angles and try to fill in the coordinates
+    # If we cannot get both x and y from this, add it to the map of missing leds.
+    missing = {}
     for k in shot.keys():
         led_id = k
 
-        filtered_list = list(filter(lambda s: s.x != 0 and s.y != 0, shot[k]))
+        filtered_list = list(filter(lambda s: s.x != 0 and s.y != 0, shot[led_id]))
 
-        z = mean(map(lambda s: s.y, shot[k]))
+        z = extract_z(shot[k])
 
         ys = list(filter(lambda s: s.angle in [90, 270], filtered_list))
-        if not ys:
-            missingy.append(led_id)
-            y = 0
-        else:
-            y = ys[0].x if ys[0].angle == 270 else IMAGE_WIDTH - ys[0].x
+        y = (ys[0].x if ys[0].angle == 270 else IMAGE_WIDTH - ys[0].x) if ys else 0
 
         xs = list(filter(lambda s: s.angle in [0, 180], filtered_list))
-        if not xs:
-            missingx.append(led_id)
-            x = 0
+        x = (xs[0].x if xs[0].angle == 0 else IMAGE_WIDTH - xs[0].x) if xs else 0
+
+        if x == 0 or y == 0:
+            missing[led_id] = filtered_list
+
+        coordinates[led_id] = Coord(led_id, x, y, z)
+
+    print(f"Missing after 0 degree: {len(missing)}")
+
+    # Go through the list of missing leds. Look at 45/135/225/315 angles and try to fill in the coordinates
+    # If we cannot get both x and y from this, add it to the map of missing_45 leds.
+    missing_45 = {}
+    fixed_45 = []
+    for k, v in missing.items():
+        led_id = k
+        filtered_list = v
+        stored_point = coordinates[led_id]
+
+        # Extract the coordinates
+        z = extract_z(shot[k])
+
+        ys = list(filter(lambda s: s.angle in [135, 315], filtered_list))
+        y = (ys[0].x if ys[0].angle == 315 else IMAGE_WIDTH - ys[0].x) if ys else 0
+        xs = list(filter(lambda s: s.angle in [45, 225], filtered_list))
+        x = (xs[0].x if xs[0].angle == 45 else IMAGE_WIDTH - xs[0].x) if xs else 0
+
+        coord = rotate(Coord(led_id, x, y, z), -40)
+
+        # If we aren't sure on x or y, keep it set to 0.
+        if x == 0:
+            coord = Coord(coord.led_id, 0, coord.y, coord.z)
+        elif y == 0:
+            coord = Coord(coord.led_id, coord.x, 0, coord.z)
+
+        if stored_point.x != 0:
+            coord = Coord(coord.led_id, stored_point.x, coord.y, coord.z)
+        if stored_point.y != 0:
+            coord = Coord(coord.led_id, coord.x, stored_point.y, coord.z)
+
+        if x == 0 or y == 0:
+            missing_45[led_id] = filtered_list
         else:
-            x = xs[0].x if xs[0].angle == 0 else IMAGE_WIDTH - xs[0].x
+            fixed_45.append(coord)
 
-        coordinates[led_id] = Coord(led_id, x, y, int(z))
+        coordinates[led_id] = coord
 
-    print(f"Missing x: {len(missingx)}")
-    print()
-    print(f"Missing y: {len(missingy)}")
+    print(f"Fixed 45 degree: {len(fixed_45)}")
+    for x in fixed_45:
+        # print(f"F45 - {x.led_id:03}")
+        if x.led_id in missing:
+            del missing[x.led_id]
 
-    fixed = []
-    for k, v in coordinates.items():
-        if v.x == 0 or v.y == 0:
-            if not reliable_neighbors(k, coordinates):
-                continue
+    print(f"Missing after 45 degree: {len(missing_45)}")
 
-            pn = coordinates.get(k - 1)
-            nn = coordinates.get(k + 1)
-            # Interpolate between these
-            # TODO: Maybe keep the x/y if it exists?
-            fixed_point = Coord(k, avg(pn.x, nn.x), avg(pn.y, nn.y), avg(pn.z, nn.z))
+    # Fix coordinates where possible with by finding the closest neighbors and interpolating
+    fixed_neighbor = []
+    for k, v in missing.items():
+        pn = None
+        p_offset = 1
+        while not pn and k - p_offset >= 0:
+            if reliable_coordinate(k - p_offset, coordinates):
+                pn = coordinates[k - p_offset]
+                break
+            p_offset += 1
 
-            fixed.append(fixed_point)
+        nn = None
+        n_offset = 1
+        while not nn and k + n_offset <= 499:
+            if reliable_coordinate(k + n_offset, coordinates):
+                nn = coordinates[k + n_offset]
+                break
+            n_offset += 1
 
-            coordinates[k] = fixed_point
+        if not pn or not nn:
+            continue
 
+        # Interpolate between these
+        coord = Coord(k,
+                      avg(pn.x, nn.x, offset=(p_offset + n_offset)),
+                      avg(pn.y, nn.y, offset=(p_offset + n_offset)),
+                      avg(pn.z, nn.z, offset=(p_offset + n_offset)))
+        fixed_neighbor.append(coord)
+        coordinates[k] = coord
 
-    for k, v in coordinates.items():
-        if v.x == 0 and v.y == 0:
-            if not reliable_neighbors(k, coordinates):
-                print(f"{k} is unfixable")
-
-    print()
-    # print(f"Fixed Neighbors: {list(map(lambda x: x.led_id, fixed))}")
-    print(f"Fixed with Neighbors: {len(fixed)}")
+    print(f"Fixed neighbors: {len(fixed_neighbor)}")
 
     # Write the output to file
     with open(args.output_file, 'w') as output_file:
@@ -168,16 +265,53 @@ def main():
             csvwriter.writerow(v)
 
     try:
-        draw(coordinates.values(), fixed)
+        draw(coordinates.values(), [fixed_45, fixed_neighbor], limit=[0, 500], with_labels=True)
 
     except KeyboardInterrupt:
         pass
 
 
+def rotate(coord, angle):
+    r = R.from_rotvec(angle * np.array([0, 0, 1]), degrees=True)
+
+    # Rotate the coordinates 45 degrees to match the angle the images were taken.
+    v = normalize_to_center([coord.x, coord.y, coord.z])
+    v = r.apply(v).tolist()
+    v = denormalize_from_center(v)
+    return Coord(coord.led_id, int(v[0]), int(v[1]), int(v[2]))
+
+
+def normalize_to_center(v):
+    """
+    Shifts the origin from the corner to the center. This is needed to rotate the coordinate plane about the center.
+    """
+    return [v[0] - (IMAGE_WIDTH / 2) + 5, v[1] - (IMAGE_WIDTH / 2), v[2]]
+
+
+def denormalize_from_center(v):
+    """
+    Shifts the origin from the center to the corner. This is the inverse of 'normalize_to_center'.
+    """
+    return [v[0] + (IMAGE_WIDTH / 2) - 5, v[1] + (IMAGE_WIDTH / 2), v[2]]
+
+
 def reliable_neighbors(led_id, coordinates):
-    pn = coordinates.get(led_id - 1)
-    nn = coordinates.get(led_id + 1)
-    return pn and nn and pn.x > 0 and pn.y > 0 and nn.x > 0 and nn.y > 0
+    """
+    Returns true if the immediate neighbors of the given led_id have x/y/z coordinates.
+    :param led_id int identifier of the led index
+    :param coordinates dictionary of led_id to Coord object for that led.
+    """
+    return reliable_coordinate(led_id - 1, coordinates) and reliable_coordinate(led_id + 1, coordinates)
+
+
+def reliable_coordinate(led_id, coordinates):
+    """
+    Returns true if the given led has non-zero x/y/z coordinates.
+    :param led_id int identifier of the led index
+    :param coordinates dictionary of led_id to Coord object for that led.
+    """
+    led = coordinates.get(led_id)
+    return led and led.x > 0 and led.y > 0
 
 
 # Main program logic follows:
