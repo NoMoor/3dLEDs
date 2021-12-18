@@ -9,7 +9,7 @@ LED_PIN = 18  # GPIO pin connected to the pixels (18 uses PWM!).
 # LED_PIN       = 10      # GPIO pin connected to the pixels (10 uses SPI /dev/spidev0.0).
 LED_FREQ_HZ = 800000  # LED signal frequency in hertz (usually 800khz)
 LED_DMA = 10  # DMA channel to use for generating signal (try 10)
-LED_BRIGHTNESS = 100  # Set to 0 for darkest and 255 for brightest
+LED_BRIGHTNESS = 150  # Set to 0 for darkest and 255 for brightest
 LED_INVERT = False  # True to invert the signal (when using NPN transistor level shift)
 LED_CHANNEL = 0  # set to '1' for GPIOs 13, 19, 41, 45 or 53
 
@@ -27,32 +27,44 @@ def fill(strip, color=LED_OFF):
 
 
 # Define functions which animate LEDs in various ways.
-def fillByHeight(strip, coordinates):
-    min_height = min(coordinates.values(), key=lambda c: c[2])[2]
-    max_height = max(coordinates.values(), key=lambda c: c[2])[2]
+def fillByHeight(strip, coordinates, axis="x"):
     speed = 2
     width = 300
     half_band = width / 2
-    max_brightness = 60
+    max_brightness = 40
     green_adjust = .5
 
-    for i in range(min_height, max_height, speed):
+    for i in range(0, width * 2, speed):
         for ledid, coord in coordinates.items():
             # Distance from the given coordinate
-            dist = abs(i - coord[2]) % width
+            if axis == "x":
+                d = coord[0]
+            elif axis == "y":
+                d = coord[1]
+            elif axis == "z":
+                d = coord[2]
 
-            brightness = max_brightness - int(max_brightness * dist/half_band)
-            if brightness > 0:
-                strip.setPixelColor(ledid, Color(0, min(brightness, max_brightness), 0))
+            dist = (d - i) % (width * 2)
+
+            is_red = 0 < dist < width
+
+            brightness_modifier = 1 - abs(((dist % width) - half_band) / half_band)
+            # brightness_modifier = abs(((dist % width) - half_band) / half_band)
+            brightness = int(brightness_modifier * max_brightness)
+
+            if is_red:
+                strip.setPixelColor(ledid, Color(0, brightness, 0))
             else:
-                strip.setPixelColor(ledid, Color(int(max(abs(brightness), max_brightness) * green_adjust), 0, 0))
+                strip.setPixelColor(ledid, Color(int(brightness * green_adjust), 0, 0))
         strip.show()
+        time.sleep(10/1000.0)
 
 
 def main():
     # Process arguments
     parser = argparse.ArgumentParser()
     parser.add_argument('-i', '--input-file', type=str, help='The file to read in.')
+    parser.add_argument('-x', '--axis', type=str, help='The axis to run the animation around')
     args = parser.parse_args()
 
     # Create NeoPixel object with appropriate configuration.
@@ -80,7 +92,7 @@ def main():
         print('Press Ctrl-C to quit.')
         while True:
             # fill(strip, LED_WHITE)
-            fillByHeight(strip, coordinates)
+            fillByHeight(strip, coordinates, axis=args.axis)
 
     except KeyboardInterrupt:
         # Catch interrupt
