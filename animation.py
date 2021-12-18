@@ -77,6 +77,7 @@ def main():
     print("Reading lines")
     with open(args.input_file, 'r') as input_file:
         lines = input_file.readlines()
+        lines = lines[1:] # Remove the header from the file
         lines = [line.rstrip() for line in lines]
 
     print("Processing lines")
