@@ -2,14 +2,13 @@ import argparse
 import csv
 import os
 import sys
-from collections import namedtuple
-from statistics import mean, median
 import matplotlib.pyplot as plt
 import numpy as np
+from collections import namedtuple
 from scipy.spatial.transform import Rotation as R
 
-Snap = namedtuple("Snap", "led_id angle x y")
 Coord = namedtuple("Coord", "led_id x y z")
+Snap = namedtuple("Snap", "led_id angle x y")
 
 IMAGE_HEIGHT = 1920
 IMAGE_WIDTH = 1080
