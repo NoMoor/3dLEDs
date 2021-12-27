@@ -14,9 +14,9 @@ IMAGE_HEIGHT = 1920
 IMAGE_WIDTH = 1080
 
 
-def draw(og_leds, fixed_leds=None, limit=None, with_labels=False):
-    if not fixed_leds:
-        fixed_leds = []
+def draw(og_leds, led_maps=None, limit=None, with_labels=False):
+    if not led_maps:
+        led_maps = []
 
     if not limit:
         limit = [0, len(og_leds) - 1]
@@ -24,10 +24,11 @@ def draw(og_leds, fixed_leds=None, limit=None, with_labels=False):
     fig = plt.figure()
     ax = fig.add_subplot(projection='3d')
 
-    fixes = []
-    for x in fixed_leds:
-        fixes.extend(x)
-    alt_ids = set(map(lambda l: l.led_id, fixes))
+    fixes = {}
+    for led_map in led_maps:
+        for led_id, led_coord in led_map.items():
+            fixes[led_id] = led_coord
+    alt_ids = fixes.keys()
 
     partially_missing = []
 
@@ -59,17 +60,17 @@ def draw(og_leds, fixed_leds=None, limit=None, with_labels=False):
 
     # Plot different groups where there was additional processing separately.
     markers = ['^', 'o', 's']
-    for i, fix in enumerate(fixed_leds):
+    for i, led_map in enumerate(led_maps):
         xs = []
         ys = []
         zs = []
         labels = []
-        for led in fix:
-            if limit[0] <= led.led_id <= limit[1]:
-                labels.append(led.led_id)
-                xs.append(led.x)
-                ys.append(led.y)
-                zs.append(led.z)
+        for led_id, led_coord in led_map.items():
+            if limit[0] <= led_id <= limit[1]:
+                labels.append(led_id)
+                xs.append(led_coord.x)
+                ys.append(led_coord.y)
+                zs.append(led_coord.z)
 
         ax.scatter(xs, ys, zs, marker=markers[i])
 
@@ -89,14 +90,15 @@ def draw(og_leds, fixed_leds=None, limit=None, with_labels=False):
     ax.scatter(xs, ys, zs, marker='.')
 
     ax.set_xlabel('X')
-    ax.set_xlim([0, IMAGE_HEIGHT])
+    ax.set_xlim([-1, 1])
     ax.set_ylabel('Y')
-    ax.set_ylim([0, IMAGE_WIDTH])
+    ax.set_ylim([-1, 1])
     ax.set_zlabel('Z')
-    ax.set_zlim([0, IMAGE_HEIGHT])
+    max_z = max(map(lambda x: x.z, og_leds))
+    ax.set_zlim([0, max_z])
     ax.set_box_aspect((9, 9, 16))
 
-    plt.gca().invert_zaxis()
+    # plt.gca().invert_zaxis()
     plt.gca().invert_yaxis()
 
     plt.show()
@@ -132,7 +134,40 @@ def extract_z(shots):
 
 def normalize_coordinates(coordinates):
     """Normalizes the coordinates into GIFT format."""
-    pass
+    centered = [normalize_coord_to_center(x) for x in coordinates.values()]
+    min_x = min(map(lambda c: c.x, centered))
+    max_x = max(map(lambda c: c.x, centered))
+    min_y = min(map(lambda c: c.y, centered))
+    max_y = max(map(lambda c: c.y, centered))
+    min_z = min(map(lambda c: c.z, centered))
+    max_z = max(map(lambda c: c.z, centered))
+
+    print(f"Normalizing to X in [{min_x}, {max_x}] / Y in [{min_y}, {max_y}] / Z in [{min_z}, {max_z}]")
+
+    # Invert the z axis and normalize so that the lowest pixel is 0.
+    inverted = [Coord(c.led_id, c.x, c.y, max_z - c.z) for c in centered]
+
+    min_z = min(map(lambda c: c.z, inverted))
+    max_z = max(map(lambda c: c.z, inverted))
+    print(f"Normalized to Z in [{min_z}, {max_z}]")
+
+    # Scale so that everything is relative to the largest x/y offset
+
+    scaling_factor = max([min_x, max_x, min_y, max_y], key=abs)
+    scaled = [Coord(c.led_id, c.x / scaling_factor, c.y / scaling_factor, c.z / scaling_factor) for c in inverted]
+
+    min_x = min(map(lambda c: c.x, scaled))
+    max_x = max(map(lambda c: c.x, scaled))
+    min_y = min(map(lambda c: c.y, scaled))
+    max_y = max(map(lambda c: c.y, scaled))
+    min_z = min(map(lambda c: c.z, scaled))
+    max_z = max(map(lambda c: c.z, scaled))
+
+    print(f"Scaled by {scaling_factor} to X in [{min_x}, {max_x}] / Y in [{min_y}, {max_y}] / Z in [{min_z}, {max_z}]")
+
+    # Update all the values in the coordinate map.
+    for c in scaled:
+        coordinates[c.led_id] = c
 
 def main():
     parser = argparse.ArgumentParser()
@@ -144,6 +179,7 @@ def main():
         print(f"File `{args.input_file}` doesn't exist. Exiting...")
         sys.exit()
 
+    # Reads in coordinates and processes them such that the top back left pixel is 0,0,0.
     coordinates, shots = parse_data_file(args)
     missing = process_90_degrees(coordinates, shots)
     fixed_45 = process_45_degrees(coordinates, missing, shots)
@@ -154,7 +190,10 @@ def main():
         if led_id not in coordinates:
             print(f"No Value for {led_id}")
 
+    # Normalize from an all positive coordinate system to one that is centered on the tree stem.
     normalize_coordinates(coordinates)
+    normalize_coordinates(fixed_45)
+    normalize_coordinates(fixed_neighbor)
 
     # Write the output to file
     with open(args.output_file, 'w') as output_file:
@@ -173,7 +212,7 @@ def main():
 def fix_with_neighbors(coordinates, missing):
     # Fix coordinates for all leds that don't have a good x/y/z using linear interpolation
     # from the nearest neighbors on each side.
-    fixed_neighbor = []
+    fixed_neighbor = {}
     for led_id in range(0, 500):
         # Skip ones that aren't marked as missing and we have good coordinates for them.
         if led_id not in missing and reliable_coordinate(led_id, coordinates):
@@ -191,7 +230,7 @@ def fix_with_neighbors(coordinates, missing):
                           avg(prev_coord.x, next_coord.x, offset=offset),
                           avg(prev_coord.y, next_coord.y, offset=offset),
                           avg(prev_coord.z, next_coord.z, offset=offset))
-            fixed_neighbor.append(coord)
+            fixed_neighbor[led_id] = coord
             coordinates[led_id] = coord
     print(f"Fixed neighbors: {len(fixed_neighbor)}")
     return fixed_neighbor
@@ -201,7 +240,7 @@ def process_45_degrees(coordinates, missing, shots):
     # Go through the list of missing leds. Look at 45/135/225/315 angles and try to fill in the coordinates
     # If we cannot get both x and y from this, add it to the map of missing_45 leds.
     missing_45 = {}
-    fixed_45 = []
+    fixed_45 = {}
     for k, v in missing.items():
         led_id = k
         filtered_list = v
@@ -231,14 +270,14 @@ def process_45_degrees(coordinates, missing, shots):
         if x == 0 or y == 0:
             missing_45[led_id] = filtered_list
         else:
-            fixed_45.append(coord)
+            fixed_45[led_id] = coord
 
         coordinates[led_id] = coord
     print(f"Fixed 45 degree: {len(fixed_45)}")
-    for x in fixed_45:
+    for led_id, coord in fixed_45.items():
         # print(f"F45 - {x.led_id:03}")
-        if x.led_id in missing:
-            del missing[x.led_id]
+        if led_id in missing:
+            del missing[led_id]
     print(f"Missing after 45 degree: {len(missing_45)}")
     return fixed_45
 
@@ -316,14 +355,22 @@ def normalize_to_center(v):
     """
     Shifts the origin from the corner to the center. This is needed to rotate the coordinate plane about the center.
     """
-    return [v[0] - (IMAGE_WIDTH / 2) + 5, v[1] - (IMAGE_WIDTH / 2), v[2]]
+    return [v[0] - (IMAGE_WIDTH / 2) + 5, v[1] - (IMAGE_WIDTH / 2) - 5, v[2]]
+
+
+def normalize_coord_to_center(coord):
+    """
+    Shifts the origin from the corner to the center. This is needed to rotate the coordinate plane about the center.
+    """
+    centered = normalize_to_center([coord.x, coord.y, coord.z])
+    return Coord(coord.led_id, centered[0], centered[1], centered[2])
 
 
 def denormalize_from_center(v):
     """
     Shifts the origin from the center to the corner. This is the inverse of 'normalize_to_center'.
     """
-    return [v[0] + (IMAGE_WIDTH / 2) - 5, v[1] + (IMAGE_WIDTH / 2), v[2]]
+    return [v[0] + (IMAGE_WIDTH / 2) - 5, v[1] + (IMAGE_WIDTH / 2) + 5, v[2]]
 
 
 def reliable_neighbors(led_id, coordinates):

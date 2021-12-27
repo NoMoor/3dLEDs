@@ -144,7 +144,7 @@ def main():
         print(f"Folder `{args.output_folder}` doesn't exist. Exiting...")
         sys.exit()
 
-    with open(os.path.join(args.output_folder, "processed_data.txt"), 'a') as f:
+    with open(os.path.join(args.output_folder, "processed_images.csv"), 'a') as f:
         for i in range(args.start_index, args.end_index + 1):
             for angle in [0, 45, 90, 135, 180, 225, 270, 315]:
                 input_file_name = os.path.join(args.input_folder, f"led{i:03}_angle{angle:03}.jpg")

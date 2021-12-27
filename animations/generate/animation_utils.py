@@ -102,10 +102,8 @@ def read_coordinates(file_name):
     print("Processing lines")
     coordinates = {}
     for line in lines:
-        ledid, x, y, z = map(int, line.split(","))
+        ledid, x, y, z = map(float, line.split(","))
         coordinates[ledid] = (x, y, z)
-
-    # TODO: If coordinates are in absolute, normalize them here.
 
     return coordinates
 

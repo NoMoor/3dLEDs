@@ -3,9 +3,11 @@ import PIL
 from PIL import Image
 
 from animation_utils import *
+from color_utils import *
 
 
 # Define functions which animate LEDs in various ways.
+
 def fill(strip, color=LED_OFF):
     s = 0
     e = strip.numPixels()
@@ -15,6 +17,7 @@ def fill(strip, color=LED_OFF):
 
 
 # Define functions which animate LEDs in various ways.
+# TODO: Update this to use the new coordinate system.
 def fill_by_height(strip, coordinates, axis="z", width=300):
     acc = 50
     speed = width // acc
