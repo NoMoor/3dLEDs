@@ -78,6 +78,7 @@ class StripLogger:
         Writes the frames to file.
         """
         output_file_path = os.path.join("..", "run", self.output_filename)
+        print(f"Writing animation to {output_file_path}")
 
         with open(output_file_path, 'w') as output_file:
             csvwriter = csv.writer(output_file)
@@ -99,11 +100,14 @@ def read_coordinates(file_name):
         lines = lines[1:]  # Remove the header from the file
         lines = [line.rstrip() for line in lines]
 
+    # Scales the coordinates to be in [-500, 500] for x/y and [0, n * 500] for z.
+    scale = lambda val: int(val * 500)
+
     print("Processing lines")
     coordinates = {}
-    for line in lines:
-        ledid, x, y, z = map(float, line.split(","))
-        coordinates[ledid] = (x, y, z)
+    for led_id, xyz in enumerate(lines):
+        x, y, z = map(float, xyz.split(","))
+        coordinates[int(led_id)] = Coord(scale(x), scale(y), scale(z))
 
     return coordinates
 

@@ -4,7 +4,7 @@ from PIL import Image
 
 from animation_utils import *
 from color_utils import *
-
+from animate import animate_tree
 
 # Define functions which animate LEDs in various ways.
 
@@ -24,12 +24,14 @@ def fill_by_height(strip, coordinates, axis="z", width=300):
     half_band = width / 2
     max_brightness = 80
     green_adjust = .5
+    scaling = 450
 
     if not width:
         fill(strip, PINK)
         return
 
     for i in range(0, width * 2, speed):
+        i *= scaling
         for led_id, coord in coordinates.items():
             if is_back_of_tree(coord):
                 strip.setPixelColor(led_id, LED_OFF)
@@ -60,7 +62,6 @@ def fill_by_height(strip, coordinates, axis="z", width=300):
             else:
                 strip.setPixelColor(led_id, c2)
         strip.show()
-        time.sleep(10/1000.0)
 
 
 def test_bars(strip, coordinates, axis="z", size = 100):
@@ -162,13 +163,14 @@ def main():
         else:
             fill_by_height(strip, coordinates, axis=args.axis)
 
-        print("Writing to file")
         strip.write_to_file()
 
     except KeyboardInterrupt:
         # Catch interrupt
         print("Skipping writing to file")
         pass
+
+    animate_tree(args.input_file, args.output_file)
 
     print("All done here")
 

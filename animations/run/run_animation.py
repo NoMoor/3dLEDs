@@ -38,17 +38,14 @@ def read_animation(file_name):
             # remove the first item
             frame_number = int(row.pop(0))
 
-            if frame_number > 0:
-                parsed_frame = []
-                leds = list(window(row, 3))
-                for led in leds:
-                    # Flip the Red and Green channels since the tree is grb
-                    parsed_frame.append(Color(int(led[1]), int(led[0]), int(led[2])))
+            parsed_frame = []
+            leds = list(window(row, 3))
+            for led in leds:
+                # Flip the Red and Green channels since the tree is grb
+                parsed_frame.append(Color(int(led[1]), int(led[0]), int(led[2])))
 
-                # append that line to lightArray
-                light_frames.append(parsed_frame)
-
-            frame_number += 1
+            # append that line to lightArray
+            light_frames.append(parsed_frame)
 
     return light_frames
 
@@ -63,7 +60,7 @@ def fill(strip, color=LED_OFF):
 
 
 def play_animation(strip, animation):
-    print(f"Running Animation...")
+    print(f"Running Animation with {len(animation)} frames...")
     while True:
         for frame_num, frame in enumerate(animation):
             led_num = 0
@@ -96,6 +93,7 @@ def main():
 
     except KeyboardInterrupt:
         # Catch interrupt
+        print("Exiting")
         pass
 
     fill(strip)

@@ -132,7 +132,7 @@ def extract_z(shots):
     return s.y + shift
 
 
-def normalize_coordinates(coordinates):
+def normalize_coordinates(coordinates, with_log=False):
     """Normalizes the coordinates into GIFT format."""
     centered = [normalize_coord_to_center(x) for x in coordinates.values()]
     min_x = min(map(lambda c: c.x, centered))
@@ -142,14 +142,17 @@ def normalize_coordinates(coordinates):
     min_z = min(map(lambda c: c.z, centered))
     max_z = max(map(lambda c: c.z, centered))
 
-    print(f"Normalizing to X in [{min_x}, {max_x}] / Y in [{min_y}, {max_y}] / Z in [{min_z}, {max_z}]")
+    if with_log:
+        print(f"Normalizing to X in [{min_x}, {max_x}] / Y in [{min_y}, {max_y}] / Z in [{min_z}, {max_z}]")
 
     # Invert the z axis and normalize so that the lowest pixel is 0.
     inverted = [Coord(c.led_id, c.x, c.y, max_z - c.z) for c in centered]
 
     min_z = min(map(lambda c: c.z, inverted))
     max_z = max(map(lambda c: c.z, inverted))
-    print(f"Normalized to Z in [{min_z}, {max_z}]")
+
+    if with_log:
+        print(f"Normalized to Z in [{min_z}, {max_z}]")
 
     # Scale so that everything is relative to the largest x/y offset
 
@@ -163,7 +166,8 @@ def normalize_coordinates(coordinates):
     min_z = min(map(lambda c: c.z, scaled))
     max_z = max(map(lambda c: c.z, scaled))
 
-    print(f"Scaled by {scaling_factor} to X in [{min_x}, {max_x}] / Y in [{min_y}, {max_y}] / Z in [{min_z}, {max_z}]")
+    if with_log:
+        print(f"Scaled by {scaling_factor} to X in [{min_x}, {max_x}] / Y in [{min_y}, {max_y}] / Z in [{min_z}, {max_z}]")
 
     # Update all the values in the coordinate map.
     for c in scaled:
@@ -198,9 +202,9 @@ def main():
     # Write the output to file
     with open(args.output_file, 'w') as output_file:
         csvwriter = csv.writer(output_file)
-        csvwriter.writerow(("id", "x", "y", "z"))
+        # Writes x/y/z to file as csv
         for k in sorted(coordinates.keys()):
-            csvwriter.writerow(coordinates[k])
+            csvwriter.writerow(coordinates[k][1:])
 
     try:
         draw(coordinates.values(), [fixed_45, fixed_neighbor], limit=[0, 500], with_labels=False)
@@ -232,6 +236,7 @@ def fix_with_neighbors(coordinates, missing):
                           avg(prev_coord.z, next_coord.z, offset=offset))
             fixed_neighbor[led_id] = coord
             coordinates[led_id] = coord
+
     print(f"Fixed neighbors: {len(fixed_neighbor)}")
     return fixed_neighbor
 
