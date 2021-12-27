@@ -1,28 +1,7 @@
 import argparse
 
 from animation_utils import *
-
-# LED strip configuration:
-LED_COUNT = 500  # Number of LED pixels.
-LED_PIN = 18  # GPIO pin connected to the pixels (18 uses PWM!).
-# LED_PIN       = 10      # GPIO pin connected to the pixels (10 uses SPI /dev/spidev0.0).
-LED_FREQ_HZ = 800000  # LED signal frequency in hertz (usually 800khz)
-LED_DMA = 10  # DMA channel to use for generating signal (try 10)
-LED_BRIGHTNESS = 80  # Set to 0 for darkest and 255 for brightest
-LED_INVERT = False  # True to invert the signal (when using NPN transistor level shift)
-LED_CHANNEL = 0  # set to '1' for GPIOs 13, 19, 41, 45 or 53
-
-LED_OFF = Color(0, 0, 0)
-LED_WHITE = Color(255, 255, 255)
-
-
-# Define functions which animate LEDs in various ways.
-def fill(strip, color=LED_OFF):
-    s = 0
-    e = strip.numPixels()
-    for i in range(s, e):
-        strip.setPixelColor(i, color)
-    strip.show()
+from color_utils import *
 
 
 def main():
@@ -99,19 +78,19 @@ def reveal(strip, coordinates):
                     if reveal_stage == stage_blue_pink:
                         if blend < 1:
                             blend += .02
-                        color_1 = to_blended_color(RED_C, PINK_C, blend)
-                        color_2 = to_blended_color(GREEN_C, BLUE_C, blend)
+                        color_1 = Color.to_blended_color(RED_C, PINK_C, blend)
+                        color_2 = Color.to_blended_color(GREEN_C, BLUE_C, blend)
                     elif reveal_stage == stage_build_up:
-                        color_1 = to_blended_color(PINK_C, LED_OFF_C, blend)
-                        color_2 = to_blended_color(BLUE_C, LED_OFF_C, blend)
+                        color_1 = Color.to_blended_color(PINK_C, LED_OFF_C, blend)
+                        color_2 = Color.to_blended_color(BLUE_C, LED_OFF_C, blend)
                     elif reveal_stage == stage_reveal:
                         color_1 = PINK
                         color_2 = PINK
                     elif reveal_stage == stage_back_to_regular:
                         if blend < 1:
                             blend += .02
-                        color_1 = to_blended_color(PINK_C, RED_C, blend)
-                        color_2 = to_blended_color(PINK_C, GREEN_C, blend)
+                        color_1 = Color.to_blended_color(PINK_C, RED_C, blend)
+                        color_2 = Color.to_blended_color(PINK_C, GREEN_C, blend)
 
                     for led_id, coord in coordinates2.items():
                         if is_back_of_tree(coord):

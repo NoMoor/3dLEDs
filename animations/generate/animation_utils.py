@@ -8,25 +8,12 @@ from collections import namedtuple
 import numpy as np
 from scipy.constants import R
 
+from color_utils import LED_OFF
+
 IMAGE_HEIGHT = 1920
 IMAGE_WIDTH = 1080
 
-
-def to_color(rgb):
-    return Color(rgb[0], rgb[1], rgb[2])
-
-
-def to_blended_color(rgb1, rgb2, r):
-    return Color(
-        int(_lerp(rgb1[0], rgb2[0], r)),
-        int(_lerp(rgb1[1], rgb2[1], r)),
-        int(_lerp(rgb1[2], rgb2[2], r)))
-
-
-def _lerp(a, b, r):
-    diff = b - a
-    return a + (diff * r)
-
+Coord = namedtuple("Coord", "led_id x y z")
 
 def percent_off_true(x, y):
     """
@@ -39,19 +26,10 @@ def percent_off_true(x, y):
     return r / (2 * math.pi)
 
 
-def wheel(pos):
-    """Generate rainbow colors across 0-255 positions."""
-    if pos < 85:
-        return Color(pos * 3, 255 - pos * 3, 0)
-    elif pos < 170:
-        pos -= 85
-        return Color(255 - pos * 3, 0, pos * 3)
-    else:
-        pos -= 170
-        return Color(0, pos * 3, 255 - pos * 3)
-
-
 def rotate(coord, angle):
+    """
+    Rotates the given coordinate the specified angle amount.
+    """
     r = R.from_rotvec(angle * np.array([0, 0, 1]), degrees=True)
 
     # Rotate the coordinates 45 degrees to match the angle the images were taken.
@@ -59,7 +37,6 @@ def rotate(coord, angle):
     v = r.apply(v).tolist()
     v = denormalize_from_center(v)
     return Coord(coord.led_id, int(v[0]), int(v[1]), int(v[2]))
-
 
 def normalize_to_center(v):
     """
@@ -80,38 +57,10 @@ def is_back_of_tree(v):
     return v[1] < 400
 
 
-############################
-######     Colors    #######
-############################
-class Color:
-    def __init__(self, r, g, b):
-        self.r = r
-        self.g = g
-        self.b = b
-
-    def rgb_list(self):
-        return [self.r, self.g, self.b]
-
-
-LED_WHITE = Color(255, 255, 255)
-LIGHT_BLUE = Color(173, 150, 250)
-DIM_LIGHT_BLUE = Color(35, 44, 46)
-LED_OFF_C = [0, 0, 0]
-LED_OFF = to_color(LED_OFF_C)
-BLUE_C = [20, 20, 80]
-BLUE = to_color(BLUE_C)
-PINK_C = [110, 20, 20]
-PINK = to_color(PINK_C)
-RED_C = [110, 0, 0]
-RED = to_color(RED_C)
-GREEN_C = [0, 80, 0]
-GREEN = to_color(GREEN_C)
-BLUE_V1 = Color(80, 80, 250)
-PINK_V1 = Color(250, 80, 80)
-Coord = namedtuple("Coord", "led_id x y z")
-
-
 class StripLogger:
+    """
+    A class for collecting and logging to CSV the animation.
+    """
 
     def __init__(self, output_filename="", pixel_count=500):
         self.pixels = {}
@@ -125,6 +74,9 @@ class StripLogger:
         self.frames.append(copy.deepcopy(self.pixels))
 
     def write_to_file(self):
+        """
+        Writes the frames to file.
+        """
         output_file_path = os.path.join("..", "run", self.output_filename)
 
         with open(output_file_path, 'w') as output_file:
@@ -156,3 +108,10 @@ def read_coordinates(file_name):
     # TODO: If coordinates are in absolute, normalize them here.
 
     return coordinates
+
+# Define functions which animate LEDs in various ways.
+def fill(strip, color=LED_OFF):
+    s = 0
+    e = strip.numPixels()
+    for i in range(s, e):
+        strip.setPixelColor(i, color)

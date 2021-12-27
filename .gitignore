@@ -4,3 +4,4 @@ venv/
 *captures/
 
 /3dLEDs.iml
+*__pycache__/
