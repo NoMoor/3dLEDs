@@ -28,7 +28,7 @@ def detect_light_location(image):
     # testing darkening
     # save_image(im_arr, "processed", "grayscale_darkened_test1")
 
-    # find the the center of the led
+    # Find the center of the led
     diameter = 0
     led_row = 0
     led_col = 0
