@@ -1,13 +1,13 @@
 import argparse
+import sys
 import PIL
 from PIL import Image
-
 from animation_utils import *
 from color_utils import *
-from animate import animate_tree
+from visualize import animate_tree
+
 
 # Define functions which animate LEDs in various ways.
-
 def fill(strip, color=LED_OFF):
     s = 0
     e = strip.numPixels()
@@ -17,50 +17,35 @@ def fill(strip, color=LED_OFF):
 
 
 # Define functions which animate LEDs in various ways.
-# TODO: Update this to use the new coordinate system.
 def fill_by_height(strip, coordinates, axis="z", width=300):
-    acc = 50
+    acc = 150
     speed = width // acc
     half_band = width / 2
-    max_brightness = 80
+    max_brightness = 255
     green_adjust = .5
-    scaling = 450
 
-    if not width:
-        fill(strip, PINK)
-        return
-
-    for i in range(0, width * 2, speed):
-        i *= scaling
+    for i in range(width * 2, 0, -speed):
         for led_id, coord in coordinates.items():
-            if is_back_of_tree(coord):
-                strip.setPixelColor(led_id, LED_OFF)
-                continue
-
             # Distance from the given coordinate
             if axis == "x":
-                d = coord[0]
+                d = coord.x
             elif axis == "y":
-                d = coord[1]
+                d = coord.y
             else:
-                d = coord[2]
+                d = coord.z
 
             dist = (d - i) % (width * 2)
 
-            pink_blue = False
             color_1 = 0 < dist < width
 
             brightness_modifier = 1 - abs(((dist % width) - half_band) / half_band)
             # brightness_modifier = abs(((dist % width) - half_band) / half_band)
             brightness = int(brightness_modifier * max_brightness)
 
-            c1 = PINK if pink_blue else Color(0, int(brightness * green_adjust), 0)
-            c2 = BLUE if pink_blue else Color(brightness, 0, 0)
+            c1 = Color(0, int(brightness * green_adjust), 0)
+            c2 = Color(brightness, 0, 0)
+            strip.setPixelColor(led_id, c1 if color_1 else c2)
 
-            if color_1 or width == 0:
-                strip.setPixelColor(led_id, c1)
-            else:
-                strip.setPixelColor(led_id, c2)
         strip.show()
 
 
@@ -142,16 +127,20 @@ def _is_on(x, y, img, size=20):
 def main():
     # Process arguments
     parser = argparse.ArgumentParser()
-    parser.add_argument('-i', '--input-file', type=str, help='The file to read in.')
+    parser.add_argument('-i', '--input-file', type=str, help='The file to read in.', required=True)
     parser.add_argument('-o', '--output-file', type=str, help='The file to write out.')
     parser.add_argument('-t', '--test-bars', type=int, help='Whether to show test bars')
     parser.add_argument('-x', '--axis', type=str, help='The axis to run the animation around')
     args = parser.parse_args()
 
-    # Create NeoPixel object with appropriate configuration.
-    strip = StripLogger(args.output_file)
+    if not args.input_file:
+        print("Missing arg '-i' for input file.")
+        sys.exit(1)
 
     coordinates = read_coordinates(args.input_file)
+
+    # Create NeoPixel object with appropriate configuration.
+    strip = StripLogger(args.output_file)
 
     try:
         print("Starting render")
@@ -165,14 +154,14 @@ def main():
 
         strip.write_to_file()
 
+        animate_tree(args.input_file, strip.output_filename)
+
     except KeyboardInterrupt:
         # Catch interrupt
-        print("Skipping writing to file")
         pass
 
-    animate_tree(args.input_file, args.output_file)
-
     print("All done here")
+
 
 # Main program logic follows:
 if __name__ == '__main__':

@@ -21,9 +21,11 @@ class Color:
             int(_lerp(rgb1[1], rgb2[1], r)),
             int(_lerp(rgb1[2], rgb2[2], r)))
 
+
 def _lerp(a, b, r):
     diff = b - a
     return a + (diff * r)
+
 
 LED_WHITE = Color(255, 255, 255)
 LIGHT_BLUE = Color(173, 150, 250)
@@ -41,8 +43,11 @@ GREEN = Color.to_color(GREEN_C)
 BLUE_V1 = Color(80, 80, 250)
 PINK_V1 = Color(250, 80, 80)
 
+
 def wheel(pos):
     """Generate rainbow colors across 0-255 positions."""
+    pos = int(pos)
+
     if pos < 85:
         return Color(pos * 3, 255 - pos * 3, 0)
     elif pos < 170:

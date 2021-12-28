@@ -1,19 +1,36 @@
 import copy
 import csv
+from dataclasses import dataclass
 import math
 import os
+import re
 import time
-from collections import namedtuple
-
+from scipy.spatial.transform import Rotation as R
 import numpy as np
-from scipy.constants import R
 
 from color_utils import LED_OFF
 
 IMAGE_HEIGHT = 1920
 IMAGE_WIDTH = 1080
 
-Coord = namedtuple("Coord", "led_id x y z")
+
+@dataclass
+class Coord:
+    """Class for keeping x/y/z coordinates"""
+    led_id: int
+    x: int
+    y: int
+    z: int
+
+    def with_x(self, new_x):
+        return Coord(self.led_id, new_x, self.y, self.z)
+
+    def with_y(self, new_y):
+        return Coord(self.led_id, self.x, new_y, self.z)
+
+    def with_z(self, new_z):
+        return Coord(self.led_id, self.x, self.y, new_z)
+
 
 def percent_off_true(x, y):
     """
@@ -30,31 +47,17 @@ def rotate(coord, angle):
     """
     Rotates the given coordinate the specified angle amount.
     """
+    angle = int(angle)
     r = R.from_rotvec(angle * np.array([0, 0, 1]), degrees=True)
 
     # Rotate the coordinates 45 degrees to match the angle the images were taken.
-    v = normalize_to_center([coord.x, coord.y, coord.z])
-    v = r.apply(v).tolist()
-    v = denormalize_from_center(v)
+    v = r.apply([coord.x, coord.y, coord.z]).tolist()
     return Coord(coord.led_id, int(v[0]), int(v[1]), int(v[2]))
 
-def normalize_to_center(v):
-    """
-    Shifts the origin from the corner to the center. This is needed to rotate the coordinate plane about the center.
-    """
-    return [v[0] - (IMAGE_WIDTH / 2) + 5, v[1] - (IMAGE_WIDTH / 2), v[2]]
 
-
-def denormalize_from_center(v):
-    """
-    Shifts the origin from the center to the corner. This is the inverse of 'normalize_to_center'.
-    """
-    return [v[0] + (IMAGE_WIDTH / 2) - 5, v[1] + (IMAGE_WIDTH / 2), v[2]]
-
-
-def is_back_of_tree(v):
+def is_back_of_tree(coord, threshold=-100):
     """Input is a list or tuple of size 3. Returns True if this pixel is primarily on the back of the tree."""
-    return v[1] < 400
+    return coord.y < threshold
 
 
 class StripLogger:
@@ -65,7 +68,9 @@ class StripLogger:
     def __init__(self, output_filename="", pixel_count=500):
         self.pixels = {}
         self.frames = []
-        self.output_filename = output_filename if output_filename else f"animation-{time.strftime('%Y%m%d-%H%M%S')}.csv"
+
+        tmp_file = output_filename if output_filename else f"animation-{time.strftime('%Y%m%d-%H%M%S')}.csv"
+        self.output_filename = os.path.join("..", "run", tmp_file)
 
     def setPixelColor(self, led, color):
         self.pixels[led] = color
@@ -77,12 +82,12 @@ class StripLogger:
         """
         Writes the frames to file.
         """
-        output_file_path = os.path.join("..", "run", self.output_filename)
-        print(f"Writing animation to {output_file_path}")
+        print(f"Writing {len(self.frames)} frames to {self.output_filename}")
 
-        with open(output_file_path, 'w') as output_file:
+        with open(self.output_filename, 'w') as output_file:
             csvwriter = csv.writer(output_file)
             for frame_index, frame in enumerate(self.frames):
+                print(f"Writing {frame_index}", end="\r")
                 data = [frame_index]
                 for led_id in range(500):
                     if led_id in frame:
@@ -94,6 +99,12 @@ class StripLogger:
 
 
 def read_coordinates(file_name):
+    """
+    Reads coordinates from the given file name. Coordinates must be a CSV file where the ith row contains RGB values
+    for the ith element.
+    """
+    rgb_pattern = re.compile("^([-+]?[01].[0-9]+),([-+]?[01].[0-9]+),([+]?[0-9]+.[0-9]+)$")
+
     print("Reading lines")
     with open(file_name, 'r') as input_file:
         lines = input_file.readlines()
@@ -101,15 +112,19 @@ def read_coordinates(file_name):
         lines = [line.rstrip() for line in lines]
 
     # Scales the coordinates to be in [-500, 500] for x/y and [0, n * 500] for z.
-    scale = lambda val: int(val * 500)
+    def scale(val): return int(val * 500)
 
     print("Processing lines")
     coordinates = {}
     for led_id, xyz in enumerate(lines):
-        x, y, z = map(float, xyz.split(","))
-        coordinates[int(led_id)] = Coord(scale(x), scale(y), scale(z))
+        if not rgb_pattern.match(xyz):
+            print(f"Invalid coordinate input for line {led_id} |{xyz}|."
+                  f" Expected to be comma separated rgb values with x/y in [-1,1] and z > 0. ")
+        x, y, z = list(map(float, xyz.split(",")))
+        coordinates[led_id] = Coord(led_id, scale(x), scale(y), scale(z))
 
     return coordinates
+
 
 # Define functions which animate LEDs in various ways.
 def fill(strip, color=LED_OFF):

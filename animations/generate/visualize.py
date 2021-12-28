@@ -22,8 +22,15 @@ class Animation:
             ValueError: If the animation and coordinate sizes don't match
         """
         # Load data from files
-        coords = self.load_csv(coords_path)
-        self.frames = self.load_csv(animation_path, header=True) / 255
+        try:
+            coords = self.load_csv(coords_path)
+        except Exception as e:
+            print(f"Failed to read coordinates. \n {e}")
+
+        try:
+            self.frames = self.load_csv(animation_path, header=True) / 255
+        except Exception as e:
+            print(f"Failed to read frames. \n {e}")
 
         # Check that sizes match
         n_coords = coords.shape[0]
@@ -75,7 +82,7 @@ class Animation:
 
         Args:
             path (str): The path to the np array
-            header (bool, optional): Wether there is a header that should be ignored. Defaults to False.
+            header (bool, optional): Whether there is a header that should be ignored. Defaults to False.
 
         Returns:
             np.array: A numpy array holding the parsed data
@@ -121,6 +128,7 @@ class Animation:
         ax.set_facecolor((0.1, 0.1, 0.1))
 
         return fig, ax
+
 
 def animate_tree(coords_file, animation_file, interval=50):
     animation = Animation(
