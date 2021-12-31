@@ -1,18 +1,52 @@
 import argparse
 import csv
+import math
 import os
 import sys
+from dataclasses import dataclass
+from statistics import mean
+
 import matplotlib.pyplot as plt
 import numpy as np
 from collections import namedtuple
 from scipy.spatial.transform import Rotation as R
 
-Coord = namedtuple("Coord", "led_id x y z")
+
+@dataclass
+class Coord:
+    """Class for keeping x/y/z coordinates"""
+    led_id: int
+    x: int
+    y: int
+    z: int
+
+    def with_x(self, new_x):
+        return Coord(self.led_id, new_x, self.y, self.z)
+
+    def with_y(self, new_y):
+        return Coord(self.led_id, self.x, new_y, self.z)
+
+    def with_z(self, new_z):
+        return Coord(self.led_id, self.x, self.y, new_z)
+
+    def distance(self, other) -> float:
+        dx = self.x - other.x
+        dy = self.y - other.y
+        dz = self.z - other.z
+
+        return math.sqrt((dx * dx) + (dy * dy) + (dz * dz))
+
+    def __getitem__(self, item):
+        return [self.led_id, self.x, self.y, self.z][item]
+
+
 Snap = namedtuple("Snap", "led_id angle x y")
 
 IMAGE_HEIGHT = 1920
 IMAGE_WIDTH = 1080
 
+with_z_move = {}
+without_z_move = {}
 
 def draw(og_leds, led_maps=None, limit=None, with_labels=False):
     if not led_maps:
@@ -22,6 +56,7 @@ def draw(og_leds, led_maps=None, limit=None, with_labels=False):
         limit = [0, len(og_leds) - 1]
 
     fig = plt.figure()
+
     ax = fig.add_subplot(projection='3d')
 
     fixes = {}
@@ -39,12 +74,13 @@ def draw(og_leds, led_maps=None, limit=None, with_labels=False):
 
     for led in og_leds:
         if led.led_id in alt_ids:
-            continue
+            # continue
+            pass
 
         # If something is partially missing, don't plot it in the main line.
         if led.x == 0 or led.y == 0:
             partially_missing.append(led)
-            continue
+            # continue
 
         if limit[0] <= led.led_id <= limit[1]:
             labels.append(led.led_id)
@@ -52,7 +88,7 @@ def draw(og_leds, led_maps=None, limit=None, with_labels=False):
             ys.append(led.y)
             zs.append(led.z)
 
-    ax.scatter(xs, ys, zs, 'gray')
+    ax.plot(xs, ys, zs, 'gray')
 
     if with_labels:
         for i, txt in enumerate(labels):
@@ -109,8 +145,18 @@ def avg(a, b, offset=2):
     return int(a + diff // offset)
 
 
+def mean_z(shots):
+    """Returns the average z of the given shots. """
+    return mean(filter(lambda y: y != 0, map(lambda x: x.y, shots)))
+
+
+def middle_z(shots):
+    """Returns the z coordinate by finding the image where the led is nearest the center of the picture."""
+    return min(shots, key=lambda s: abs(s.x - 540)).y
+
+
 def extract_z(shots):
-    # TODO: I'm not totally sure this works or is needed.
+    """This is an attempt to get the z value and minor lensing / perspective based on where the camera was."""
     s = shots[0]
 
     # 1 means far from the center vertically
@@ -173,6 +219,63 @@ def normalize_coordinates(coordinates, with_log=False):
     for c in scaled:
         coordinates[c.led_id] = c
 
+
+def invalidate_outliers(coordinates):
+    # Generate two normal distributions
+    fig = plt.figure()
+    dists = []
+    ax2 = fig.add_subplot()
+    for i in range(0, 500):
+        if reliable_coordinate(i, coordinates):
+            a = coordinates[i]
+
+            b_id = get_next_neighbor_id(coordinates, i)
+            if b_id < 500:
+                b = coordinates[b_id]
+                dists.append(a.distance(b))
+
+    ax2.hist(dists, bins=50, color="c", edgecolor="k")
+
+    threshold = 70
+    percentile = np.percentile(dists, threshold)
+    plt.axvline(percentile, color='k', linestyle='dashed', linewidth=1)
+
+    min_ylim, max_ylim = plt.ylim()
+    plt.text(percentile * 1.1, max_ylim * 0.9, f'P{threshold}: {percentile:.2f}')
+
+    marked_for_deletion = []
+    for i in range(0, 500):
+        if not reliable_coordinate(i, coordinates):
+            if i in coordinates:
+                marked_for_deletion.append(i)
+            continue
+
+        curr = coordinates[i]
+
+        pi, ni = get_neighbor_ids(coordinates, i)
+
+        if pi < 0:
+            pi = i
+        if ni >= 500:
+            ni = i
+
+        prev = coordinates[pi]
+        next = coordinates[ni]
+
+        prev_too_far = curr.distance(prev) > abs(i - pi) * percentile
+        next_too_far = curr.distance(next) > abs(ni - i) * percentile
+
+        if prev_too_far and next_too_far:
+            marked_for_deletion.append(i)
+
+    print(f"{len(marked_for_deletion)} points will be deleted.")
+    print(marked_for_deletion)
+    for m in marked_for_deletion:
+        del coordinates[m]
+
+    plt.show()
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('-i', '--input-file', type=str, help='The file to read in.')
@@ -187,6 +290,9 @@ def main():
     coordinates, shots = parse_data_file(args)
     missing = process_90_degrees(coordinates, shots)
     fixed_45 = process_45_degrees(coordinates, missing, shots)
+
+    invalidate_outliers(coordinates)
+
     fixed_neighbor = fix_with_neighbors(coordinates, missing)
 
     # Log if there is some coordinate that we are missing.
@@ -207,7 +313,7 @@ def main():
             csvwriter.writerow(coordinates[k][1:])
 
     try:
-        draw(coordinates.values(), [fixed_45, fixed_neighbor], limit=[0, 500], with_labels=False)
+        draw(list(coordinates.values()), [fixed_45, fixed_neighbor], limit=[0, 500], with_labels=False)
 
     except KeyboardInterrupt:
         pass
@@ -252,7 +358,7 @@ def process_45_degrees(coordinates, missing, shots):
         stored_point = coordinates[led_id]
 
         # Extract the coordinates
-        z = extract_z(shots[k])
+        z = middle_z(shots[k])
 
         ys = list(filter(lambda s: s.angle in [135, 315], filtered_list))
         y = (ys[0].x if ys[0].angle == 315 else IMAGE_WIDTH - ys[0].x) if ys else 0
@@ -278,6 +384,8 @@ def process_45_degrees(coordinates, missing, shots):
             fixed_45[led_id] = coord
 
         coordinates[led_id] = coord
+
+
     print(f"Fixed 45 degree: {len(fixed_45)}")
     for led_id, coord in fixed_45.items():
         # print(f"F45 - {x.led_id:03}")
@@ -296,7 +404,7 @@ def process_90_degrees(coordinates, shots):
 
         filtered_list = list(filter(lambda s: s.x != 0 and s.y != 0, shots[led_id]))
 
-        z = extract_z(shots[k])
+        z = middle_z(shots[k])
 
         ys = list(filter(lambda s: s.angle in [90, 270], filtered_list))
         y = (ys[0].x if ys[0].angle == 270 else IMAGE_WIDTH - ys[0].x) if ys else 0
@@ -332,18 +440,25 @@ def parse_data_file(args):
 
 
 def get_neighbor_ids(coordinates, led_id):
+    return get_prev_neighbor_id(coordinates, led_id), get_next_neighbor_id(coordinates, led_id)
+
+
+def get_prev_neighbor_id(coordinates, led_id):
     prev_offset = 1
     while led_id - prev_offset >= 0:
         if reliable_coordinate(led_id - prev_offset, coordinates):
             break
         prev_offset += 1
+    return led_id - prev_offset
 
+
+def get_next_neighbor_id(coordinates, led_id):
     next_offset = 1
     while led_id + next_offset <= 499:
         if reliable_coordinate(led_id + next_offset, coordinates):
             break
         next_offset += 1
-    return (led_id - prev_offset), (led_id + next_offset)
+    return led_id + next_offset
 
 
 def rotate(coord, angle):
