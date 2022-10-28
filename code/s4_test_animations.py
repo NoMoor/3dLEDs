@@ -39,11 +39,11 @@ def fill_by_height(strip, coordinates, axis="z", width=300):
             color_1 = 0 < dist < width
 
             brightness_modifier = 1 - abs(((dist % width) - half_band) / half_band)
-            # brightness_modifier = abs(((dist % width) - half_band) / half_band)
-            brightness = int(brightness_modifier * max_brightness)
 
-            c1 = Color(0, int(brightness * green_adjust), 0)
-            c2 = Color(brightness, 0, 0)
+            # c1 = PINK_V1.adjust_brightness(brightness_modifier)
+            # c2 = Color(brightness, 0, 0)
+            c1 = LIGHT_GREEN.adjust_brightness(brightness_modifier)
+            c2 = GREEN.adjust_brightness(brightness_modifier)
             strip.setPixelColor(led_id, c1 if color_1 else c2)
 
         strip.show()
@@ -83,7 +83,7 @@ def test_bars(strip, coordinates, axis="z", size = 100):
 def test_image(strip, coordinates):
     # img = Image.open("img/test.png").convert('RGB')
 
-    img = Image.open("img/snowflake.png").convert('RGB')
+    img = Image.open("other/snowflake.png").convert('RGB')
     img = PIL.ImageOps.invert(img)
 
     # img = Image.open("img/WE.png").convert('RGB')

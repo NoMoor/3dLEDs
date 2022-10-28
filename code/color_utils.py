@@ -21,6 +21,12 @@ class Color:
             int(_lerp(rgb1[1], rgb2[1], r)),
             int(_lerp(rgb1[2], rgb2[2], r)))
 
+    def adjust_brightness(self, brightness):
+        return Color(
+            int(self.r * brightness),
+            int(self.g * brightness),
+            int(self.b * brightness))
+
 
 def _lerp(a, b, r):
     diff = b - a
@@ -38,10 +44,12 @@ PINK_C = [110, 20, 20]
 PINK = Color.to_color(PINK_C)
 RED_C = [110, 0, 0]
 RED = Color.to_color(RED_C)
-GREEN_C = [0, 80, 0]
+GREEN_C = [0, 125, 0]
 GREEN = Color.to_color(GREEN_C)
+LIGHT_GREEN = Color.to_color([80, 140, 0])
+NEON_GREEN = Color.to_color([77, 237, 48])
 BLUE_V1 = Color(80, 80, 250)
-PINK_V1 = Color(250, 80, 80)
+PINK_V1 = Color(252, 15, 100)
 
 
 def wheel(pos):

@@ -1,9 +1,11 @@
 import argparse
 import csv
+import json
 import math
 import os
 import sys
 from dataclasses import dataclass
+from datetime import datetime
 from statistics import mean
 
 import matplotlib.pyplot as plt
@@ -40,13 +42,14 @@ class Coord:
         return [self.led_id, self.x, self.y, self.z][item]
 
 
-Snap = namedtuple("Snap", "led_id angle x y")
+Snap = namedtuple("Snap", "led_id angle x y v")
 
 IMAGE_HEIGHT = 1920
 IMAGE_WIDTH = 1080
 
 with_z_move = {}
 without_z_move = {}
+
 
 def draw(og_leds, led_maps=None, limit=None, with_labels=False):
     if not led_maps:
@@ -213,7 +216,8 @@ def normalize_coordinates(coordinates, with_log=False):
     max_z = max(map(lambda c: c.z, scaled))
 
     if with_log:
-        print(f"Scaled by {scaling_factor} to X in [{min_x}, {max_x}] / Y in [{min_y}, {max_y}] / Z in [{min_z}, {max_z}]")
+        print(
+            f"Scaled by {scaling_factor} to X in [{min_x}, {max_x}] / Y in [{min_y}, {max_y}] / Z in [{min_z}, {max_z}]")
 
     # Update all the values in the coordinate map.
     for c in scaled:
@@ -277,17 +281,15 @@ def invalidate_outliers(coordinates):
 
 
 def main():
+    """Takes an input csv of <angle,x,y,z>"""
     parser = argparse.ArgumentParser()
-    parser.add_argument('-i', '--input-file', type=str, help='The file to read in.')
-    parser.add_argument('-o', '--output-file', type=str, help='The file to output.')
+    parser.add_argument('-i', '--input-file', type=str, help='The file to read in.', required=True)
+    parser.add_argument('-o', '--output-folder', default="./step3_processed_coordinates", type=str,
+                        help='The file to output.')
     args = parser.parse_args()
 
-    if not os.path.exists(f"{args.input_file}"):
-        print(f"File `{args.input_file}` doesn't exist. Exiting...")
-        sys.exit()
-
     # Reads in coordinates and processes them such that the top back left pixel is 0,0,0.
-    coordinates, shots = parse_data_file(args)
+    coordinates, shots = parse_data_file(args.input_file)
     missing = process_90_degrees(coordinates, shots)
     fixed_45 = process_45_degrees(coordinates, missing, shots)
 
@@ -306,11 +308,13 @@ def main():
     normalize_coordinates(fixed_neighbor)
 
     # Write the output to file
-    with open(args.output_file, 'w') as output_file:
+    output_file_name = os.path.join(args.output_folder, f'{datetime.now().strftime("%Y%m%d_%H%M")}.csv')
+    with open(output_file_name, 'w') as output_file:
         csvwriter = csv.writer(output_file)
         # Writes x/y/z to file as csv
         for k in sorted(coordinates.keys()):
             csvwriter.writerow(coordinates[k][1:])
+    print(f"Results written to {os.path.abspath(output_file_name)}")
 
     try:
         draw(list(coordinates.values()), [fixed_45, fixed_neighbor], limit=[0, 500], with_labels=False)
@@ -320,8 +324,10 @@ def main():
 
 
 def fix_with_neighbors(coordinates, missing):
-    # Fix coordinates for all leds that don't have a good x/y/z using linear interpolation
-    # from the nearest neighbors on each side.
+    """
+    Fix coordinates for all leds that don't have a good x/y/z using linear interpolation
+    from the nearest neighbors on each side.
+    """
     fixed_neighbor = {}
     for led_id in range(0, 500):
         # Skip ones that aren't marked as missing and we have good coordinates for them.
@@ -348,8 +354,10 @@ def fix_with_neighbors(coordinates, missing):
 
 
 def process_45_degrees(coordinates, missing, shots):
-    # Go through the list of missing leds. Look at 45/135/225/315 angles and try to fill in the coordinates
-    # If we cannot get both x and y from this, add it to the map of missing_45 leds.
+    """
+    Go through the list of missing leds. Look at 45/135/225/315 angles and try to fill in the coordinates
+    If we cannot get both x and y from this, add it to the map of missing_45 leds.
+    """
     missing_45 = {}
     fixed_45 = {}
     for k, v in missing.items():
@@ -385,7 +393,6 @@ def process_45_degrees(coordinates, missing, shots):
 
         coordinates[led_id] = coord
 
-
     print(f"Fixed 45 degree: {len(fixed_45)}")
     for led_id, coord in fixed_45.items():
         # print(f"F45 - {x.led_id:03}")
@@ -396,8 +403,10 @@ def process_45_degrees(coordinates, missing, shots):
 
 
 def process_90_degrees(coordinates, shots):
-    # Go through the normal 0/90/180/270 angles and try to fill in the coordinates
-    # If we cannot get both x and y from this, add it to the map of missing leds.
+    """
+    Go through the normal 0/90/180/270 angles and try to fill in the coordinates
+    If we cannot get both x and y from this, add it to the map of missing leds.
+    """
     missing = {}
     for k in shots.keys():
         led_id = k
@@ -420,22 +429,32 @@ def process_90_degrees(coordinates, shots):
     return missing
 
 
-def parse_data_file(args):
-    with open(args.input_file, 'r') as input_file:
+def parse_data_file(file_name):
+    """Parses a CSV of format 'id###,angle###-x####-y#### into a list of Coordinate objects."""
+    # Check that the input file exists.
+    if not os.path.exists(f"{file_name}"):
+        print(f"Input csv file `{file_name}` not found. Exiting.")
+        sys.exit()
+
+    with open(file_name, 'r') as input_file:
         lines = input_file.readlines()
         lines = [line.rstrip() for line in lines]
     coordinates = {}
     shot = {}
     # Parse the lines and filter ones we don't want to consider.
     for line in lines:
-        led_id = int(line[2:5])
-        angle = int(line[11:14])
-        x = int(line[16:20])
-        y = int(line[22:26])
+        led_attr = json.loads(line)
+        led_id = int(led_attr['id'])
+        angle = int(led_attr['angle'])
+        x = int(led_attr['x'])
+        y = int(led_attr['y'])
+        v = int(led_attr['v'])
         if not x or not y:
             continue
+        if v < 100:
+            continue
 
-        shot.setdefault(led_id, []).append(Snap(led_id, angle, x, y))
+        shot.setdefault(led_id, []).append(Snap(led_id, angle, x, y, v))
     return coordinates, shot
 
 

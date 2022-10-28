@@ -70,7 +70,7 @@ class StripLogger:
         self.frames = []
 
         tmp_file = output_filename if output_filename else f"animation-{time.strftime('%Y%m%d-%H%M%S')}.csv"
-        self.output_filename = os.path.join("..", "run", tmp_file)
+        self.output_filename = os.path.join("../animations", "run", tmp_file)
 
     def setPixelColor(self, led, color):
         self.pixels[led] = color
