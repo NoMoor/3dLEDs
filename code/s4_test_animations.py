@@ -130,30 +130,30 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('-i', '--input-file', type=str, help='The file to read in.')
     parser.add_argument('-o', '--output-file', type=str, help='The file to write out.')
-    parser.add_argument('-t', '--test-bars', type=int, help='Whether to show test bars')
+    parser.add_argument('-s', '--test-image', action='store_true', help='Whether to show the test image')
+    parser.add_argument('-t', '--test-bars', action='store_true', help='Whether to show test bars')
     parser.add_argument('-x', '--axis', type=str, help='The axis to run the animation around')
     args = parser.parse_args()
 
     input_file = cont.get_tree_coordinates(args.input_file)
-
     coordinates = read_coordinates(input_file)
+    print(f"Coor len {len(coordinates)}")
 
     # Create NeoPixel object with appropriate configuration.
-    strip = StripLogger(args.output_file)
+    light_strip = LightStripLogger(coordinates, args.output_file)
 
     try:
-        print("Starting render")
-
-        if False:
-            test_image(strip, coordinates)
+        print("Creating animation")
+        if args.test_image:
+            test_image(light_strip, coordinates)
         elif args.test_bars:
-            test_bars(strip, coordinates, axis=args.axis, size=args.test_bars)
+            test_bars(light_strip, coordinates, axis=args.axis, size=args.test_bars)
         else:
-            fill_by_height(strip, coordinates, axis=args.axis)
+            fill_by_height(light_strip, coordinates, axis=args.axis)
 
-        strip.write_to_file()
+        light_strip.write_to_file()
 
-        animate_tree(input_file, strip.output_filename)
+        animate_tree(input_file, light_strip.output_filename)
 
     except KeyboardInterrupt:
         # Catch interrupt

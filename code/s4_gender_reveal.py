@@ -14,7 +14,7 @@ def main():
     parser.add_argument('-o', '--output-file', type=str, help='The file to write out.')
     args = parser.parse_args()
 
-    strip = StripLogger(args.output_file)
+    strip = LightStripLogger(args.output_file)
 
     coordinates = read_coordinates(args.input_file)
     max_z = max(coordinates.values(), key=lambda c: c.z).z

@@ -1,6 +1,5 @@
 import copy
 import csv
-from dataclasses import dataclass
 import math
 import os
 import re
@@ -43,14 +42,15 @@ def is_back_of_tree(coord, threshold=-100):
     return coord.y < threshold
 
 
-class StripLogger:
+class LightStripLogger:
     """
     A class for collecting and logging to CSV the animation.
     """
 
-    def __init__(self, output_filename="", pixel_count=500):
+    def __init__(self, coordinates, output_filename=""):
         self.pixels = {}
         self.frames = []
+        self.pixel_count = len(coordinates)
 
         tmp_file = output_filename if output_filename else f"animation-{time.strftime('%Y%m%d-%H%M%S')}.csv"
         self.output_filename = os.path.join("./animations", tmp_file)
@@ -72,7 +72,7 @@ class StripLogger:
             for frame_index, frame in enumerate(self.frames):
                 print(f"Writing {frame_index}", end="\r")
                 data = [frame_index]
-                for led_id in range(500):
+                for led_id in range(self.pixel_count):
                     if led_id in frame:
                         data.extend(frame[led_id].rgb_list())
                     else:
@@ -90,9 +90,7 @@ def read_coordinates(file_name):
 
     print("Reading lines")
     with open(file_name, 'r') as input_file:
-        lines = input_file.readlines()
-        lines = lines[1:]  # Remove the header from the file
-        lines = [line.rstrip() for line in lines]
+        lines = [line.rstrip() for line in input_file.readlines()]
 
     # Scales the coordinates to be in [-500, 500] for x/y and [0, n * 500] for z.
     def scale(val): return int(val * 500)
@@ -111,6 +109,7 @@ def read_coordinates(file_name):
 
 # Define functions which animate LEDs in various ways.
 def fill(strip, color=LED_OFF):
+    """Sets all the lights to a given color"""
     s = 0
     e = strip.numPixels()
     for i in range(s, e):
