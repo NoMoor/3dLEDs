@@ -5,31 +5,14 @@ import math
 import os
 import re
 import time
-from scipy.spatial.transform import Rotation as R
+from scipy.spatial.transform import Rotation as Rot
 import numpy as np
 
-from color_utils import LED_OFF
+from utils.colors import LED_OFF
+from utils.coords import Coord3d
 
 IMAGE_HEIGHT = 1920
 IMAGE_WIDTH = 1080
-
-
-@dataclass
-class Coord:
-    """Class for keeping x/y/z coordinates"""
-    led_id: int
-    x: int
-    y: int
-    z: int
-
-    def with_x(self, new_x):
-        return Coord(self.led_id, new_x, self.y, self.z)
-
-    def with_y(self, new_y):
-        return Coord(self.led_id, self.x, new_y, self.z)
-
-    def with_z(self, new_z):
-        return Coord(self.led_id, self.x, self.y, new_z)
 
 
 def percent_off_true(x, y):
@@ -48,11 +31,11 @@ def rotate(coord, angle):
     Rotates the given coordinate the specified angle amount.
     """
     angle = int(angle)
-    r = R.from_rotvec(angle * np.array([0, 0, 1]), degrees=True)
+    r = Rot.from_rotvec(angle * np.array([0, 0, 1]), degrees=True)
 
     # Rotate the coordinates 45 degrees to match the angle the images were taken.
     v = r.apply([coord.x, coord.y, coord.z]).tolist()
-    return Coord(coord.led_id, int(v[0]), int(v[1]), int(v[2]))
+    return Coord3d(coord.led_id, int(v[0]), int(v[1]), int(v[2]))
 
 
 def is_back_of_tree(coord, threshold=-100):
@@ -70,7 +53,7 @@ class StripLogger:
         self.frames = []
 
         tmp_file = output_filename if output_filename else f"animation-{time.strftime('%Y%m%d-%H%M%S')}.csv"
-        self.output_filename = os.path.join("../animations", "run", tmp_file)
+        self.output_filename = os.path.join("./animations", tmp_file)
 
     def setPixelColor(self, led, color):
         self.pixels[led] = color
@@ -121,7 +104,7 @@ def read_coordinates(file_name):
             print(f"Invalid coordinate input for line {led_id} |{xyz}|."
                   f" Expected to be comma separated rgb values with x/y in [-1,1] and z > 0. ")
         x, y, z = list(map(float, xyz.split(",")))
-        coordinates[led_id] = Coord(led_id, scale(x), scale(y), scale(z))
+        coordinates[led_id] = Coord3d(led_id, scale(x), scale(y), scale(z))
 
     return coordinates
 

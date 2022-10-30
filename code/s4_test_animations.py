@@ -1,10 +1,11 @@
 import argparse
-import sys
+
 import PIL
 from PIL import Image
-from animation_utils import *
-from color_utils import *
-from visualize import animate_tree
+from utils.animation import *
+from utils.colors import *
+from utils.visualize import animate_tree
+from utils import continuation as cont
 
 
 # Define functions which animate LEDs in various ways.
@@ -83,7 +84,7 @@ def test_bars(strip, coordinates, axis="z", size = 100):
 def test_image(strip, coordinates):
     # img = Image.open("img/test.png").convert('RGB')
 
-    img = Image.open("other/snowflake.png").convert('RGB')
+    img = Image.open("s4/snowflake.png").convert('RGB')
     img = PIL.ImageOps.invert(img)
 
     # img = Image.open("img/WE.png").convert('RGB')
@@ -127,17 +128,15 @@ def _is_on(x, y, img, size=20):
 def main():
     # Process arguments
     parser = argparse.ArgumentParser()
-    parser.add_argument('-i', '--input-file', type=str, help='The file to read in.', required=True)
+    parser.add_argument('-i', '--input-file', type=str, help='The file to read in.')
     parser.add_argument('-o', '--output-file', type=str, help='The file to write out.')
     parser.add_argument('-t', '--test-bars', type=int, help='Whether to show test bars')
     parser.add_argument('-x', '--axis', type=str, help='The axis to run the animation around')
     args = parser.parse_args()
 
-    if not args.input_file:
-        print("Missing arg '-i' for input file.")
-        sys.exit(1)
+    input_file = cont.get_tree_coordinates(args.input_file)
 
-    coordinates = read_coordinates(args.input_file)
+    coordinates = read_coordinates(input_file)
 
     # Create NeoPixel object with appropriate configuration.
     strip = StripLogger(args.output_file)
@@ -154,7 +153,7 @@ def main():
 
         strip.write_to_file()
 
-        animate_tree(args.input_file, strip.output_filename)
+        animate_tree(input_file, strip.output_filename)
 
     except KeyboardInterrupt:
         # Catch interrupt

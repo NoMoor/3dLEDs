@@ -1,49 +1,21 @@
 import argparse
 import csv
-import json
-import math
 import os
 import sys
-from dataclasses import dataclass
+
+from utils.visualize import draw, draw_distance_distribution
+from utils.coords import Coord3d, Coord2d
+from utils import continuation as cont
+
 from datetime import datetime
 from statistics import mean
 
-import matplotlib.pyplot as plt
 import numpy as np
-from collections import namedtuple
-from scipy.spatial.transform import Rotation as R
+from scipy.spatial.transform import Rotation as Rot
 
-
-@dataclass
-class Coord:
-    """Class for keeping x/y/z coordinates"""
-    led_id: int
-    x: int
-    y: int
-    z: int
-
-    def with_x(self, new_x):
-        return Coord(self.led_id, new_x, self.y, self.z)
-
-    def with_y(self, new_y):
-        return Coord(self.led_id, self.x, new_y, self.z)
-
-    def with_z(self, new_z):
-        return Coord(self.led_id, self.x, self.y, new_z)
-
-    def distance(self, other) -> float:
-        dx = self.x - other.x
-        dy = self.y - other.y
-        dz = self.z - other.z
-
-        return math.sqrt((dx * dx) + (dy * dy) + (dz * dz))
-
-    def __getitem__(self, item):
-        return [self.led_id, self.x, self.y, self.z][item]
-
-
-Snap = namedtuple("Snap", "led_id angle x y v")
-
+# The percentile [0 / 100] to keep 'nearby' leds. (eg. 70 = LEDs with peers farther away than 70% of other leds will be
+# assumed invalid).
+THRESHOLD = 70
 IMAGE_HEIGHT = 1920
 IMAGE_WIDTH = 1080
 
@@ -51,96 +23,51 @@ with_z_move = {}
 without_z_move = {}
 
 
-def draw(og_leds, led_maps=None, limit=None, with_labels=False):
-    if not led_maps:
-        led_maps = []
+def main():
+    """Takes an input csv of <angle,x,y,z>"""
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-i', '--input-file', type=str, help='The file to read in.')
+    parser.add_argument('-o', '--output-folder', default="./s3", type=str, help='The file to output.')
+    args = parser.parse_args()
 
-    if not limit:
-        limit = [0, len(og_leds) - 1]
+    input_file = cont.get_twod_coordinates_file(args)
 
-    fig = plt.figure()
+    # Reads in coordinates and processes them such that the top back left pixel is 0,0,0.
+    coordinates = {}
+    shots = parse_data_file(input_file)
+    missing = process_90_degrees(coordinates, shots)
+    fixed_45 = process_45_degrees(coordinates, missing, shots)
 
-    ax = fig.add_subplot(projection='3d')
+    invalidate_outliers(coordinates)
 
-    fixes = {}
-    for led_map in led_maps:
-        for led_id, led_coord in led_map.items():
-            fixes[led_id] = led_coord
-    alt_ids = fixes.keys()
+    fixed_neighbor = fix_with_neighbors(coordinates, missing)
 
-    partially_missing = []
+    # Log if there is some coordinate that we are missing.
+    for led_id in range(0, 500):
+        if led_id not in coordinates:
+            print(f"No Value for {led_id}")
 
-    xs = []
-    ys = []
-    zs = []
-    labels = []
+    # Normalize from an all positive coordinate system to one that is centered on the tree stem.
+    normalize_coordinates(coordinates)
+    normalize_coordinates(fixed_45)
+    normalize_coordinates(fixed_neighbor)
 
-    for led in og_leds:
-        if led.led_id in alt_ids:
-            # continue
-            pass
+    # Write the output to file
+    output_file_name = os.path.join(args.output_folder, f'{datetime.now().strftime("%Y%m%d_%H%M")}.csv')
+    with open(output_file_name, 'w') as output_file:
+        csvwriter = csv.writer(output_file)
+        # Writes x/y/z to file as csv
+        for k in sorted(coordinates.keys()):
+            csvwriter.writerow(coordinates[k][1:])
+    print(f"Results written to {os.path.abspath(output_file_name)}")
 
-        # If something is partially missing, don't plot it in the main line.
-        if led.x == 0 or led.y == 0:
-            partially_missing.append(led)
-            # continue
+    cont.write_continue_file(twod_coordinates_file=input_file, threed_coordinates_file=output_file_name)
 
-        if limit[0] <= led.led_id <= limit[1]:
-            labels.append(led.led_id)
-            xs.append(led.x)
-            ys.append(led.y)
-            zs.append(led.z)
+    try:
+        draw(list(coordinates.values()), [fixed_45, fixed_neighbor], limit=[0, 500], with_labels=False)
 
-    ax.plot(xs, ys, zs, 'gray')
-
-    if with_labels:
-        for i, txt in enumerate(labels):
-            ax.text(xs[i], ys[i], zs[i], txt)
-
-    # Plot different groups where there was additional processing separately.
-    markers = ['^', 'o', 's']
-    for i, led_map in enumerate(led_maps):
-        xs = []
-        ys = []
-        zs = []
-        labels = []
-        for led_id, led_coord in led_map.items():
-            if limit[0] <= led_id <= limit[1]:
-                labels.append(led_id)
-                xs.append(led_coord.x)
-                ys.append(led_coord.y)
-                zs.append(led_coord.z)
-
-        ax.scatter(xs, ys, zs, marker=markers[i])
-
-        if with_labels:
-            for i, txt in enumerate(labels):
-                ax.text(xs[i], ys[i], zs[i], txt)
-
-    # Plot others
-    xs = []
-    ys = []
-    zs = []
-    for led in partially_missing:
-        xs.append(led.x)
-        ys.append(led.y)
-        zs.append(led.z)
-
-    ax.scatter(xs, ys, zs, marker='.')
-
-    ax.set_xlabel('X')
-    ax.set_xlim([-1, 1])
-    ax.set_ylabel('Y')
-    ax.set_ylim([-1, 1])
-    ax.set_zlabel('Z')
-    max_z = max(map(lambda x: x.z, og_leds))
-    ax.set_zlim([0, max_z])
-    ax.set_box_aspect((9, 9, 16))
-
-    # plt.gca().invert_zaxis()
-    plt.gca().invert_yaxis()
-
-    plt.show()
+    except KeyboardInterrupt:
+        pass
 
 
 def avg(a, b, offset=2):
@@ -195,7 +122,7 @@ def normalize_coordinates(coordinates, with_log=False):
         print(f"Normalizing to X in [{min_x}, {max_x}] / Y in [{min_y}, {max_y}] / Z in [{min_z}, {max_z}]")
 
     # Invert the z axis and normalize so that the lowest pixel is 0.
-    inverted = [Coord(c.led_id, c.x, c.y, max_z - c.z) for c in centered]
+    inverted = [Coord3d(x.led_id, x.x, x.y, max_z - x.z) for x in centered]
 
     min_z = min(map(lambda c: c.z, inverted))
     max_z = max(map(lambda c: c.z, inverted))
@@ -206,29 +133,29 @@ def normalize_coordinates(coordinates, with_log=False):
     # Scale so that everything is relative to the largest x/y offset
 
     scaling_factor = max([min_x, max_x, min_y, max_y], key=abs)
-    scaled = [Coord(c.led_id, c.x / scaling_factor, c.y / scaling_factor, c.z / scaling_factor) for c in inverted]
+    scaled_coordinate = [Coord3d(c.led_id, c.x / scaling_factor, c.y / scaling_factor, c.z / scaling_factor) for c in
+                         inverted]
 
-    min_x = min(map(lambda c: c.x, scaled))
-    max_x = max(map(lambda c: c.x, scaled))
-    min_y = min(map(lambda c: c.y, scaled))
-    max_y = max(map(lambda c: c.y, scaled))
-    min_z = min(map(lambda c: c.z, scaled))
-    max_z = max(map(lambda c: c.z, scaled))
+    min_x = min(map(lambda c: c.x, scaled_coordinate))
+    max_x = max(map(lambda c: c.x, scaled_coordinate))
+    min_y = min(map(lambda c: c.y, scaled_coordinate))
+    max_y = max(map(lambda c: c.y, scaled_coordinate))
+    min_z = min(map(lambda c: c.z, scaled_coordinate))
+    max_z = max(map(lambda c: c.z, scaled_coordinate))
 
     if with_log:
         print(
-            f"Scaled by {scaling_factor} to X in [{min_x}, {max_x}] / Y in [{min_y}, {max_y}] / Z in [{min_z}, {max_z}]")
+            f"Scaled by {scaling_factor} to X in [{min_x}, {max_x}] / Y in [{min_y}, {max_y}] / Z "
+            f"in [{min_z}, {max_z}]")
 
     # Update all the values in the coordinate map.
-    for c in scaled:
-        coordinates[c.led_id] = c
+    for updated_coordinate in scaled_coordinate:
+        coordinates[updated_coordinate.led_id] = updated_coordinate
 
 
 def invalidate_outliers(coordinates):
     # Generate two normal distributions
-    fig = plt.figure()
     dists = []
-    ax2 = fig.add_subplot()
     for i in range(0, 500):
         if reliable_coordinate(i, coordinates):
             a = coordinates[i]
@@ -238,14 +165,7 @@ def invalidate_outliers(coordinates):
                 b = coordinates[b_id]
                 dists.append(a.distance(b))
 
-    ax2.hist(dists, bins=50, color="c", edgecolor="k")
-
-    threshold = 70
-    percentile = np.percentile(dists, threshold)
-    plt.axvline(percentile, color='k', linestyle='dashed', linewidth=1)
-
-    min_ylim, max_ylim = plt.ylim()
-    plt.text(percentile * 1.1, max_ylim * 0.9, f'P{threshold}: {percentile:.2f}')
+    percentile = np.percentile(dists, THRESHOLD)
 
     marked_for_deletion = []
     for i in range(0, 500):
@@ -263,11 +183,11 @@ def invalidate_outliers(coordinates):
         if ni >= 500:
             ni = i
 
-        prev = coordinates[pi]
-        next = coordinates[ni]
+        prev_c = coordinates[pi]
+        next_c = coordinates[ni]
 
-        prev_too_far = curr.distance(prev) > abs(i - pi) * percentile
-        next_too_far = curr.distance(next) > abs(ni - i) * percentile
+        prev_too_far = curr.distance(prev_c) > abs(i - pi) * percentile
+        next_too_far = curr.distance(next_c) > abs(ni - i) * percentile
 
         if prev_too_far and next_too_far:
             marked_for_deletion.append(i)
@@ -277,50 +197,7 @@ def invalidate_outliers(coordinates):
     for m in marked_for_deletion:
         del coordinates[m]
 
-    plt.show()
-
-
-def main():
-    """Takes an input csv of <angle,x,y,z>"""
-    parser = argparse.ArgumentParser()
-    parser.add_argument('-i', '--input-file', type=str, help='The file to read in.', required=True)
-    parser.add_argument('-o', '--output-folder', default="./step3_processed_coordinates", type=str,
-                        help='The file to output.')
-    args = parser.parse_args()
-
-    # Reads in coordinates and processes them such that the top back left pixel is 0,0,0.
-    coordinates, shots = parse_data_file(args.input_file)
-    missing = process_90_degrees(coordinates, shots)
-    fixed_45 = process_45_degrees(coordinates, missing, shots)
-
-    invalidate_outliers(coordinates)
-
-    fixed_neighbor = fix_with_neighbors(coordinates, missing)
-
-    # Log if there is some coordinate that we are missing.
-    for led_id in range(0, 500):
-        if led_id not in coordinates:
-            print(f"No Value for {led_id}")
-
-    # Normalize from an all positive coordinate system to one that is centered on the tree stem.
-    normalize_coordinates(coordinates)
-    normalize_coordinates(fixed_45)
-    normalize_coordinates(fixed_neighbor)
-
-    # Write the output to file
-    output_file_name = os.path.join(args.output_folder, f'{datetime.now().strftime("%Y%m%d_%H%M")}.csv')
-    with open(output_file_name, 'w') as output_file:
-        csvwriter = csv.writer(output_file)
-        # Writes x/y/z to file as csv
-        for k in sorted(coordinates.keys()):
-            csvwriter.writerow(coordinates[k][1:])
-    print(f"Results written to {os.path.abspath(output_file_name)}")
-
-    try:
-        draw(list(coordinates.values()), [fixed_45, fixed_neighbor], limit=[0, 500], with_labels=False)
-
-    except KeyboardInterrupt:
-        pass
+    draw_distance_distribution(dists, THRESHOLD)
 
 
 def fix_with_neighbors(coordinates, missing):
@@ -342,10 +219,10 @@ def fix_with_neighbors(coordinates, missing):
             offset = next_id - prev_id
 
             # Interpolate between these nearest neighbors
-            coord = Coord(led_id,
-                          avg(prev_coord.x, next_coord.x, offset=offset),
-                          avg(prev_coord.y, next_coord.y, offset=offset),
-                          avg(prev_coord.z, next_coord.z, offset=offset))
+            coord = Coord3d(led_id,
+                            avg(prev_coord.x, next_coord.x, offset=offset),
+                            avg(prev_coord.y, next_coord.y, offset=offset),
+                            avg(prev_coord.z, next_coord.z, offset=offset))
             fixed_neighbor[led_id] = coord
             coordinates[led_id] = coord
 
@@ -373,18 +250,18 @@ def process_45_degrees(coordinates, missing, shots):
         xs = list(filter(lambda s: s.angle in [45, 225], filtered_list))
         x = (xs[0].x if xs[0].angle == 45 else IMAGE_WIDTH - xs[0].x) if xs else 0
 
-        coord = rotate(Coord(led_id, x, y, z), -40)
+        coord = rotate(Coord3d(led_id, x, y, z), -40)
 
         # If we aren't sure on x or y, keep it set to 0.
         if x == 0:
-            coord = Coord(coord.led_id, 0, coord.y, coord.z)
+            coord = Coord3d(coord.led_id, 0, coord.y, coord.z)
         elif y == 0:
-            coord = Coord(coord.led_id, coord.x, 0, coord.z)
+            coord = Coord3d(coord.led_id, coord.x, 0, coord.z)
 
         if stored_point.x != 0:
-            coord = Coord(coord.led_id, stored_point.x, coord.y, coord.z)
+            coord = Coord3d(coord.led_id, stored_point.x, coord.y, coord.z)
         if stored_point.y != 0:
-            coord = Coord(coord.led_id, coord.x, stored_point.y, coord.z)
+            coord = Coord3d(coord.led_id, coord.x, stored_point.y, coord.z)
 
         if x == 0 or y == 0:
             missing_45[led_id] = filtered_list
@@ -424,7 +301,7 @@ def process_90_degrees(coordinates, shots):
         if x == 0 or y == 0:
             missing[led_id] = filtered_list
 
-        coordinates[led_id] = Coord(led_id, x, y, z)
+        coordinates[led_id] = Coord3d(led_id, x, y, z)
     print(f"Missing after 0 degree: {len(missing)}")
     return missing
 
@@ -439,23 +316,18 @@ def parse_data_file(file_name):
     with open(file_name, 'r') as input_file:
         lines = input_file.readlines()
         lines = [line.rstrip() for line in lines]
-    coordinates = {}
-    shot = {}
+
+    shots = {}
     # Parse the lines and filter ones we don't want to consider.
     for line in lines:
-        led_attr = json.loads(line)
-        led_id = int(led_attr['id'])
-        angle = int(led_attr['angle'])
-        x = int(led_attr['x'])
-        y = int(led_attr['y'])
-        v = int(led_attr['v'])
-        if not x or not y:
-            continue
-        if v < 100:
+        led = Coord2d.from_json(line)
+
+        # If we weren't able to resolve the light, drop this element.
+        if (not led.x and not led.y) or led.b < 50:
             continue
 
-        shot.setdefault(led_id, []).append(Snap(led_id, angle, x, y, v))
-    return coordinates, shot
+        shots.setdefault(led.led_id, []).append(led)
+    return shots
 
 
 def get_neighbor_ids(coordinates, led_id):
@@ -481,13 +353,13 @@ def get_next_neighbor_id(coordinates, led_id):
 
 
 def rotate(coord, angle):
-    r = R.from_rotvec(angle * np.array([0, 0, 1]), degrees=True)
+    r = Rot.from_rotvec(angle * np.array([0, 0, 1]), degrees=True)
 
     # Rotate the coordinates 45 degrees to match the angle the images were taken.
     v = normalize_to_center([coord.x, coord.y, coord.z])
     v = r.apply(v).tolist()
     v = denormalize_from_center(v)
-    return Coord(coord.led_id, int(v[0]), int(v[1]), int(v[2]))
+    return Coord3d(coord.led_id, int(v[0]), int(v[1]), int(v[2]))
 
 
 def normalize_to_center(v):
@@ -502,7 +374,7 @@ def normalize_coord_to_center(coord):
     Shifts the origin from the corner to the center. This is needed to rotate the coordinate plane about the center.
     """
     centered = normalize_to_center([coord.x, coord.y, coord.z])
-    return Coord(coord.led_id, centered[0], centered[1], centered[2])
+    return Coord3d(coord.led_id, centered[0], centered[1], centered[2])
 
 
 def denormalize_from_center(v):

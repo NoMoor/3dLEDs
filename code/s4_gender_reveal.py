@@ -1,10 +1,10 @@
 import argparse
 from enum import IntEnum
 
-from animation_utils import *
-from animator import Animator
-from visualize import animate_tree
-from color_utils import *
+from code.utils.animation import *
+from code.utils.animator import Animator
+from code.utils.visualize import animate_tree
+from code.utils.colors import *
 
 
 def main():

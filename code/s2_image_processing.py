@@ -1,6 +1,8 @@
-import json
 from datetime import datetime
 import time
+
+from utils.coords import Coord2d
+from utils import continuation as c
 
 import cv2
 import os
@@ -16,7 +18,6 @@ components:
   * x_coord = 4 digit x coordinate of the brightest pixel on the image where the left of the image is 0.
   * y_coord = 4 digit y coordinate of the brightest pixel on the image where the top of the image is 0.  
 """
-
 
 THRESHOLD_VALUE = 40
 # Radius must be odd for GaussianBlur
@@ -62,11 +63,13 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('-s', '--start-index', type=int, default=0, help='The index of the first LED to use.')
     parser.add_argument('-e', '--end-index', type=int, default=500, help='The index of the last LED to use.')
-    parser.add_argument('-i', '--input-folder', type=str, default="./step1_image_captures",
+    parser.add_argument('-i', '--input-folder', type=str,
                         help='The relative folder for input files')
-    parser.add_argument('-o', '--output-folder', type=str, default="./step2_processed_images",
+    parser.add_argument('-o', '--output-folder', type=str, default="./s2",
                         help='The relative folder for output files')
     args = parser.parse_args()
+
+    input_folder = c.get_image_processing_folder(args)
 
     # Create the output folder
     out_folder = os.path.join(args.output_folder, datetime.now().strftime("%Y%m%d_%H%M"))
@@ -74,10 +77,12 @@ def main():
         print(f"Make output directory: {out_folder}")
         os.makedirs(out_folder)
 
+    out_file = os.path.join(out_folder, "processed_images.csv")
+
     batch_starttime = time.perf_counter()
     image_count = 0
     try:
-        with open(os.path.join(out_folder, "processed_images.csv"), 'a') as f:
+        with open(out_file, 'w') as f:
             for i in range(args.start_index, args.end_index):
                 for angle in [0, 45, 90, 135, 180, 225, 270, 315]:
                     # Initialize some trackers
@@ -85,7 +90,7 @@ def main():
 
                     # Check the input file
                     base_file_name = f"led{i:03}_angle{angle:03}"
-                    input_file_name = os.path.join(args.input_folder, f"{base_file_name}.jpg")
+                    input_file_name = os.path.join(input_folder, f"{base_file_name}.jpg")
                     if not os.path.exists(input_file_name):
                         print(f"Skipping {input_file_name}. File not found.")
                         continue
@@ -97,8 +102,8 @@ def main():
                     cv2.circle(processed_image, loc, RADIUS, (255, 0, 0), 2)
 
                     # Update the csv and save the image.
-                    led_attrs = {'id': i, 'angle': angle, "x": loc[0], "y": loc[1], "v": maxVal}
-                    f.write(json.dumps(led_attrs) + "\n")
+                    coord2d = Coord2d(i, angle, loc[0], loc[1], maxVal)
+                    f.write(coord2d.to_json() + "\n")
                     save_image(processed_image, out_folder, f"{base_file_name}_processed.jpg")
 
                     # Print the timing information.
@@ -109,8 +114,10 @@ def main():
         print("\nTidying up...\n\n")
 
     batch_endtime = time.perf_counter()
+    c.write_continue_file(images_folder=input_folder, twod_coordinates_file=out_file)
     print(f"Results written to {os.path.abspath(out_folder)}")
     print(f"Took {batch_endtime - batch_starttime:.2f}s to process {image_count} images.")
+
 
 # Main program logic follows:
 if __name__ == '__main__':
