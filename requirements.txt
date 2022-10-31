@@ -1,0 +1,8 @@
+numpy~=1.21.4
+scipy~=1.7.3
+matplotlib~=3.5.1
+google~=3.0.0
+opencv-python~=4.6.0.66
+Pillow~=8.4.0
+grpcio~=1.50.0
+grpcio-tools~=1.50.0

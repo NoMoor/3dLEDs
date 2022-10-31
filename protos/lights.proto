@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+package lights;
+
+service Lights {
+    rpc SetLights(SetLightsRequest) returns (SetLightsResponse) {}
+}
+
+message SetLightsRequest {
+    int32 id = 1;
+    string description = 2;
+    repeated Pix pix = 3;
+}
+
+message Pix {
+    int32 pix_id = 1;
+    int64 rgb = 2;
+}
+
+message SetLightsResponse {
+    bool is_successful = 1;
+    string failure_message = 2;
+}

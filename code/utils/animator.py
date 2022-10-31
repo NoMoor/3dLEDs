@@ -1,6 +1,5 @@
 from code.utils.colors import LED_OFF
 
-
 class Animator:
     def __init__(self, strip):
         self.strip = strip
