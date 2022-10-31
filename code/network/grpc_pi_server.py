@@ -4,13 +4,11 @@ import logging
 import grpc
 
 import lights_pb2_grpc, lights_pb2
-from const import decode_rgb
-
 
 from rpi_ws281x import *
 
 # LED strip configuration:
-from utils.colors import Color
+from utils.colors import Color, decode_rgb
 
 LED_COUNT = 500  # Number of LED pixels.
 LED_PIN = 18  # GPIO pin connected to the pixels (18 uses PWM!).
@@ -30,17 +28,21 @@ class LightsServicer(lights_pb2_grpc.LightsServicer):
     def __init__(self):
         # TODO: Create a stub for testing?
         strip = Adafruit_NeoPixel(LED_COUNT, LED_PIN, LED_FREQ_HZ, LED_DMA, LED_INVERT, LED_BRIGHTNESS, LED_CHANNEL)
+        strip.begin()  # Initialize the pixels
+        strip.show()  # Turn off all the pixels
 
     def SetLights(self, request, context):
         print(request)
-        self.printLightValues(request.pix)
+        self.displayLights(request.pix)
 
         return lights_pb2.SetLightsResponse(is_successful=True)
 
-    def printLightValues(self, pix):
-        for p in pix:
+    def displayLights(self, pix):
+        for idx, p in enumerate(pix):
             r, g, b = decode_rgb(p.rgb)
-            print(f"id: {p.pix_id} r:[{r}] g:[{g}] b:[{b}]")
+            strip.setPixelColor(idx, Color(int(g), int(r), int(b)))
+        strip.show()
+
 
 
 def serve():

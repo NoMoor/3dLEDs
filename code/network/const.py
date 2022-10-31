@@ -2,20 +2,11 @@ import dataclasses
 import json
 from dataclasses import dataclass
 
+from utils.colors import encode_rgb, decode_rgb
+
 HOST = '127.0.0.1'  # The server's hostname or IP address
 PORT = 8192         # The port used by the server
 
-
-def encode_rgb(r, g, b):
-    return r << 16 | g << 8 | b
-
-
-def decode_rgb(v):
-    b = v & 255
-    v = v >> 8
-    g = v & 255
-    r = v >> 8
-    return (r, g, b)
 
 @dataclass
 class Frame:

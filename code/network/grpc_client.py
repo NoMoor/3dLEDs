@@ -7,7 +7,8 @@ import grpc
 
 import lights_pb2
 import lights_pb2_grpc
-from const import encode_rgb
+from utils.colors import encode_rgb
+
 
 def setLights(stub):
     request = lights_pb2.SetLightsRequest()

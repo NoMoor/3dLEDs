@@ -11,6 +11,11 @@ class Color:
         return [self.r, self.g, self.b]
 
     @staticmethod
+    def from_encoded_rgb(rgb):
+        r, g, b = decode_rgb(rgb)
+        return Color(r, g, b)
+
+    @staticmethod
     def to_color(rgb):
         return Color(rgb[0], rgb[1], rgb[2])
 
@@ -64,3 +69,15 @@ def wheel(pos):
     else:
         pos -= 170
         return Color(0, pos * 3, 255 - pos * 3)
+
+
+def encode_rgb(r, g, b):
+    return r << 16 | g << 8 | b
+
+
+def decode_rgb(v):
+    b = v & 255
+    v = v >> 8
+    g = v & 255
+    r = v >> 8
+    return (r, g, b)

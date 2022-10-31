@@ -4,7 +4,7 @@ import logging
 import grpc
 
 import lights_pb2_grpc, lights_pb2
-from const import decode_rgb
+from utils.colors import decode_rgb
 
 
 class LightsServicer(lights_pb2_grpc.LightsServicer):
@@ -15,11 +15,11 @@ class LightsServicer(lights_pb2_grpc.LightsServicer):
 
     def SetLights(self, request, context):
         print(request)
-        self.printLightValues(request.pix)
+        self.print_light_values(request.pix)
 
         return lights_pb2.SetLightsResponse(is_successful=True)
 
-    def printLightValues(self, pix):
+    def print_light_values(self, pix):
         for p in pix:
             r, g, b = decode_rgb(p.rgb)
             print(f"id: {p.pix_id} r:[{r}] g:[{g}] b:[{b}]")
