@@ -5,6 +5,8 @@ from _csv import reader
 from rpi_ws281x import *
 
 # LED strip configuration:
+from utils.colors import Color
+
 LED_COUNT = 500  # Number of LED pixels.
 LED_PIN = 18  # GPIO pin connected to the pixels (18 uses PWM!).
 # LED_PIN       = 10      # GPIO pin connected to the pixels (10 uses SPI /dev/spidev0.0).
@@ -65,10 +67,8 @@ def play_animation(strip, animation):
     while True:
         start = time.perf_counter()
         for frame_num, frame in enumerate(animation):
-            led_num = 0
-            for color in frame:
-                strip.setPixelColor(led_num, color)
-                led_num += 1
+            for idx, color in enumerate(frame):
+                strip.setPixelColor(idx, color)
             strip.show()
         total_frames = len(animation)
         # print(f"Running at {total_frames / (time.perf_counter() - start):0.2f} fps")

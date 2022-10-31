@@ -10,7 +10,6 @@ import lights_pb2_grpc
 from const import encode_rgb
 
 def setLights(stub):
-    start = perf_counter()
     request = lights_pb2.SetLightsRequest()
     request.id = 12345
     request.description = "I said something.."
@@ -21,8 +20,6 @@ def setLights(stub):
         request.pix.append(lights_pb2.Pix(pix_id=i, rgb=encode_rgb(r, g, b)))
 
     response = stub.SetLights(request)
-    end = perf_counter()
-    print(f"Request took: {end - start}")
 
 
 def run():
@@ -42,7 +39,7 @@ def run():
 
         end = perf_counter()
         print(f"Sequence took: {end - start}s")
-        print(f"Average time: {(end - start)/iterations}s")
+        print(f"Average FPS: {iterations / (end - start)}s")
 
 
 if __name__ == '__main__':
