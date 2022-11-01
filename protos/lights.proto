@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package lights;
+package network;
 
 service Lights {
     rpc SetLights(SetLightsRequest) returns (SetLightsResponse) {}

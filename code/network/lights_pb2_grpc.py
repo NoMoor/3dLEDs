@@ -2,7 +2,7 @@
 """Client and server classes corresponding to protobuf-defined services."""
 import grpc
 
-import lights_pb2 as lights__pb2
+from . import lights_pb2 as lights__pb2
 
 
 class LightsStub(object):
@@ -15,7 +15,7 @@ class LightsStub(object):
             channel: A grpc.Channel.
         """
         self.SetLights = channel.unary_unary(
-                '/lights.Lights/SetLights',
+                '/network.Lights/SetLights',
                 request_serializer=lights__pb2.SetLightsRequest.SerializeToString,
                 response_deserializer=lights__pb2.SetLightsResponse.FromString,
                 )
@@ -40,7 +40,7 @@ def add_LightsServicer_to_server(servicer, server):
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
-            'lights.Lights', rpc_method_handlers)
+            'network.Lights', rpc_method_handlers)
     server.add_generic_rpc_handlers((generic_handler,))
 
 
@@ -59,7 +59,7 @@ class Lights(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/lights.Lights/SetLights',
+        return grpc.experimental.unary_unary(request, target, '/network.Lights/SetLights',
             lights__pb2.SetLightsRequest.SerializeToString,
             lights__pb2.SetLightsResponse.FromString,
             options, channel_credentials,

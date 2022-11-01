@@ -13,19 +13,19 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x0clights.proto\x12\x06lights\"M\n\x10SetLightsRequest\x12\n\n\x02id\x18\x01 \x01(\x05\x12\x13\n\x0b\x64\x65scription\x18\x02 \x01(\t\x12\x18\n\x03pix\x18\x03 \x03(\x0b\x32\x0b.lights.Pix\"\"\n\x03Pix\x12\x0e\n\x06pix_id\x18\x01 \x01(\x05\x12\x0b\n\x03rgb\x18\x02 \x01(\x03\"C\n\x11SetLightsResponse\x12\x15\n\ris_successful\x18\x01 \x01(\x08\x12\x17\n\x0f\x66\x61ilure_message\x18\x02 \x01(\t2L\n\x06Lights\x12\x42\n\tSetLights\x12\x18.lights.SetLightsRequest\x1a\x19.lights.SetLightsResponse\"\x00\x62\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x0clights.proto\x12\x07network\"N\n\x10SetLightsRequest\x12\n\n\x02id\x18\x01 \x01(\x05\x12\x13\n\x0b\x64\x65scription\x18\x02 \x01(\t\x12\x19\n\x03pix\x18\x03 \x03(\x0b\x32\x0c.network.Pix\"\"\n\x03Pix\x12\x0e\n\x06pix_id\x18\x01 \x01(\x05\x12\x0b\n\x03rgb\x18\x02 \x01(\x03\"C\n\x11SetLightsResponse\x12\x15\n\ris_successful\x18\x01 \x01(\x08\x12\x17\n\x0f\x66\x61ilure_message\x18\x02 \x01(\t2N\n\x06Lights\x12\x44\n\tSetLights\x12\x19.network.SetLightsRequest\x1a\x1a.network.SetLightsResponse\"\x00\x62\x06proto3')
 
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, globals())
 _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'lights_pb2', globals())
 if _descriptor._USE_C_DESCRIPTORS == False:
 
   DESCRIPTOR._options = None
-  _SETLIGHTSREQUEST._serialized_start=24
-  _SETLIGHTSREQUEST._serialized_end=101
-  _PIX._serialized_start=103
-  _PIX._serialized_end=137
-  _SETLIGHTSRESPONSE._serialized_start=139
-  _SETLIGHTSRESPONSE._serialized_end=206
-  _LIGHTS._serialized_start=208
-  _LIGHTS._serialized_end=284
+  _SETLIGHTSREQUEST._serialized_start=25
+  _SETLIGHTSREQUEST._serialized_end=103
+  _PIX._serialized_start=105
+  _PIX._serialized_end=139
+  _SETLIGHTSRESPONSE._serialized_start=141
+  _SETLIGHTSRESPONSE._serialized_end=208
+  _LIGHTS._serialized_start=210
+  _LIGHTS._serialized_end=288
 # @@protoc_insertion_point(module_scope)

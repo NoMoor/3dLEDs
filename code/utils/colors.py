@@ -10,6 +10,9 @@ class Color:
     def rgb_list(self):
         return [self.r, self.g, self.b]
 
+    def encode_rgb(self):
+        return encode_rgb(self.r, self.g, self.b)
+
     @staticmethod
     def from_encoded_rgb(rgb):
         r, g, b = decode_rgb(rgb)
@@ -60,6 +63,7 @@ PINK_V1 = Color(252, 15, 100)
 def wheel(pos):
     """Generate rainbow colors across 0-255 positions."""
     pos = int(pos)
+    pos = pos % 255
 
     if pos < 85:
         return Color(pos * 3, 255 - pos * 3, 0)

@@ -1,24 +1,23 @@
 from __future__ import print_function
 
 import logging
-from time import perf_counter
+from time import perf_counter, time
 
 import grpc
 
-import lights_pb2
-import lights_pb2_grpc
-from utils.colors import encode_rgb
+from network import lights_pb2
+from network import lights_pb2_grpc
+from utils.colors import encode_rgb, wheel
 
 
 def setLights(stub):
     request = lights_pb2.SetLightsRequest()
     request.id = 12345
     request.description = "I said something.."
+    ts = (time() * 50) % 255
     for i in range(500):
-        r = i % 100
-        g = r + 100
-        b = g + 50
-        request.pix.append(lights_pb2.Pix(pix_id=i, rgb=encode_rgb(r, g, b)))
+        color = wheel((ts + i) % 255)
+        request.pix.append(lights_pb2.Pix(pix_id=i, rgb=color.encode_rgb()))
 
     response = stub.SetLights(request)
 
@@ -33,9 +32,10 @@ def run():
 
         start = perf_counter()
 
-        iterations = 10000
+        iterations = 100000
         for i in range(iterations):
-            print(f"Run iteration {i}")
+            if not (i % 200):
+                print(f"Run iteration {i}")
             setLights(stub)
 
         end = perf_counter()
