@@ -6,3 +6,4 @@ opencv-python~=4.6.0.66
 Pillow~=8.4.0
 grpcio~=1.50.0
 grpcio-tools~=1.50.0
+pygame~=2.1.2
