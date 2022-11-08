@@ -1,0 +1,11 @@
+lane_count = 5
+note_width = 32
+note_height = 32
+lane_padding = 32
+note_speed = 2 / 5
+fps = 60
+spawn_interval = 15
+frame_height = 500
+frame_width = lane_padding + (lane_padding + note_width) * lane_count
+notes_colors = ["palegreen2", "firebrick1", "goldenrod2", "dodgerblue1", "coral"]
+note_press_color = "yellow1"
