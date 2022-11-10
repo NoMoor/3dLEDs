@@ -17,7 +17,8 @@ def generate_note_id():
 def main():
     pygame.init()
     screen = pygame.display.set_mode((frame_width, frame_height))
-    lanes = [Lane(i) for i in range(lane_count)]
+    settings = Settings()
+    lanes = [Lane(i, settings) for i in range(lane_count)]
 
     clock = pygame.time.Clock()
     dt = 0
@@ -27,7 +28,7 @@ def main():
         # Spawn new notes
         if not frame_num % spawn_interval:
             # Randomly pick 0, 1, or 2 notes to spawn.
-            note_count = random.choices([0, 1, 2], [.25, .5, .25])[0]  # Returns a list. Get the only element.
+            note_count = random.choices([0, 1, 2], [.45, .5, .05])[0]  # Returns a list. Get the only element.
             selected_lanes = random.sample(range(lane_count), note_count)
 
             for selected_lane in selected_lanes:
@@ -46,10 +47,13 @@ def main():
 
         # Redraw the screen
         screen.fill((30, 30, 30))
+        # Draw the 'hitbox'
+        pygame.draw.rect(screen, (50, 100, 50), sweet_spot)
         [lane.draw(screen) for lane in lanes]
         pygame.display.update()
 
         # Do frame maintenance
+        [lane.cleanup() for lane in lanes]
         dt = clock.tick(fps)
         frame_num = frame_num + 1
 
