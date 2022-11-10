@@ -2,8 +2,8 @@ import random
 
 import pygame
 
-from treehero.const import *
-from treehero.lane import Lane
+from const import *
+from lane import Lane
 
 version = "0.3"
 next_note_id = 0

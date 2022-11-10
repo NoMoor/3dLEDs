@@ -1,6 +1,6 @@
 import pygame
 
-from treehero.const import note_width, note_height, notes_colors, lane_x, note_speed, note_hit_box_max, note_miss_color, \
+from const import note_width, note_height, notes_colors, lane_x, note_speed, note_hit_box_max, note_miss_color, \
     note_hit_box_min, note_hit_color, lane_start_y, lane_end_y
 
 

@@ -1,8 +1,8 @@
 import pygame
 
-from treehero.const import note_width, note_height, notes_colors, lane_outside_padding, lane_internal_padding, \
+from const import note_width, note_height, notes_colors, lane_outside_padding, lane_internal_padding, \
     note_hit_box_min, note_target_y, lane_x, string_width, lane_height, lane_start_y
-from treehero.note import Note
+from note import Note
 
 
 class Lane(pygame.sprite.Group):
