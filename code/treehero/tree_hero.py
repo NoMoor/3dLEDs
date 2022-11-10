@@ -9,19 +9,52 @@ version = "0.3"
 next_note_id = 0
 debug = True
 
+title_font = None
+score_font = None
+
 
 def generate_note_id():
+    """Generates the id for th next note."""
     global next_note_id
     next_note_id = next_note_id + 1
     return next_note_id
 
 
+def render_header(screen, state):
+    """Renders the header containing the title and the score information."""
+    title_surface = title_font.render(game_title, False, title_color)
+    title_rect = title_surface.get_rect()
+    screen.blit(title_surface, ((frame_width - title_rect.width) // 2, (header_height // 4 - title_rect.height // 2)))
+
+    streak_surface = score_font.render(f'Streak: {state.current_streak}', False, score_color)
+    streak_rect = streak_surface.get_rect()
+    screen.blit(streak_surface,
+                (frame_width // 4 - streak_rect.width // 2, (header_height * 3 // 4 - streak_rect.height // 2)))
+
+    score_surface = score_font.render(f'Score: {state.net_score}', False, score_color)
+    score_rect = score_surface.get_rect()
+    screen.blit(score_surface,
+                ((frame_width * 3 // 4) - score_rect.width // 2, (header_height * 3 // 4 - score_rect.height // 2)))
+
+
+def initialize_fonts():
+    """Create fonts once for use in rendering."""
+    global title_font
+    title_font = pygame.font.SysFont('Comic Sans MS', 50)
+
+    global score_font
+    score_font = pygame.font.SysFont('Comic Sans MS', 30)
+
+
 def main():
     pygame.init()
+    initialize_fonts()
+
     screen = pygame.display.set_mode((frame_width, frame_height))
-    pygame.display.set_caption(f"Tree Hero - v{version}")
+    pygame.display.set_caption(f"{game_title} - v{version}")
     settings = Settings()
-    lanes = [Lane(i, settings) for i in range(lane_count)]
+    state = State()
+    lanes = [Lane(i, settings, state) for i in range(lane_count)]
     [l.setup() for l in lanes]
 
     clock = pygame.time.Clock()
@@ -52,9 +85,12 @@ def main():
 
         # Redraw the screen
         screen.fill((30, 30, 30))
-        # Draw the 'hitbox'
+
         if debug:
+            # Draw the hitbox
             pygame.draw.rect(screen, (50, 100, 50), hitbox_visual)
+
+        render_header(screen, state)
         [lane.draw(screen) for lane in lanes]
         pygame.display.update()
 
