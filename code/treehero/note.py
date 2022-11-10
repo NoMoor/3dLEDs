@@ -19,15 +19,12 @@ class Note(pygame.sprite.Sprite):
         self.rect.move_ip((lane_x(self.lane.lane_id), 0))
 
         self.image.fill(self.color)
-        self.marked_for_death = False
-        self.marked_as_hit = False
         self.hittable = True
 
     def update(self, keys, events, dt):
         # Note goes off-screen.
         if self.rect.y > 500:
-            # TODO: Try using self.kill()
-            self.marked_for_death = True
+            self.kill()
         # Note goes past the spot where it is hittable.
         elif self.rect.y > note_hit_box_max:
             self.color = pygame.Color(note_miss_color)
@@ -35,9 +32,9 @@ class Note(pygame.sprite.Sprite):
         elif self.hittable and \
                 note_hit_box_min < self.rect.y < note_hit_box_max and \
                 keys[self.lane.settings.keys[self.lane.lane_id]]:
-            print(f"Nailed it! {pygame.time.get_ticks()} {self.rect.y}")
+            print(f"Hit the note! t:{pygame.time.get_ticks()} y:{self.rect.y}")
             self.color = pygame.Color(note_hit_color)
-            self.marked_as_hit = True
+            self.kill()
         else:
             self.color = pygame.Color(notes_colors[self.lane.lane_id])
 

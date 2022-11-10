@@ -18,13 +18,6 @@ class Lane(pygame.sprite.Group):
         new_note = Note(note_id, self)
         self.notes.append(new_note)
 
-    def cleanup(self):
-        dead_notes = [x for x in self.notes if x.marked_for_death or x.marked_as_hit]
-
-        for note in dead_notes:
-            self.notes.remove(note)
-            self.remove(note)
-
     def setup(self):
         LaneCenter(self)
         NoteTarget(self)

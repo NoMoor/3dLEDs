@@ -59,7 +59,6 @@ def main():
         pygame.display.update()
 
         # Do frame maintenance
-        [lane.cleanup() for lane in lanes]
         dt = clock.tick(fps)
         frame_num = frame_num + 1
 
