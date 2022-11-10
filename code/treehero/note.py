@@ -1,4 +1,7 @@
-from treehero.const import *
+import pygame
+
+from treehero.const import note_width, note_height, notes_colors, lane_x, note_speed, note_hit_box_max, note_miss_color, \
+    note_hit_box_min, note_hit_color
 
 
 class Note(pygame.sprite.Sprite):
@@ -13,8 +16,7 @@ class Note(pygame.sprite.Sprite):
         self.color = pygame.Color(notes_colors[self.lane.lane_id])
 
         # Calculate the offset of the lane to get this in the right column.
-        lane_x = lane_padding + (note_width + lane_padding) * self.lane.lane_id
-        self.rect.move_ip((lane_x, 0))
+        self.rect.move_ip((lane_x(self.lane.lane_id), 0))
 
         self.image.fill(self.color)
         self.marked_for_death = False
@@ -22,10 +24,9 @@ class Note(pygame.sprite.Sprite):
         self.hittable = True
 
     def update(self, keys, events, dt):
-        self.rect.move_ip((0, note_speed * dt))
-
         # Note goes off-screen.
         if self.rect.y > 500:
+            # TODO: Try using self.kill()
             self.marked_for_death = True
         # Note goes past the spot where it is hittable.
         elif self.rect.y > note_hit_box_max:
@@ -34,8 +35,7 @@ class Note(pygame.sprite.Sprite):
         elif self.hittable and \
                 note_hit_box_min < self.rect.y < note_hit_box_max and \
                 keys[self.lane.settings.keys[self.lane.lane_id]]:
-            # In the sweet spot
-            print("Nailed it!")
+            print(f"Nailed it! {pygame.time.get_ticks()} {self.rect.y}")
             self.color = pygame.Color(note_hit_color)
             self.marked_as_hit = True
         else:
@@ -45,4 +45,5 @@ class Note(pygame.sprite.Sprite):
             if note_hit_box_min > self.rect.y:
                 self.hittable = not keys[self.lane.settings.keys[self.lane.lane_id]]
 
+        self.rect.move_ip((0, note_speed * dt))
         self.image.fill(self.color)

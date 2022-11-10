@@ -5,7 +5,9 @@ import pygame
 from treehero.const import *
 from treehero.lane import Lane
 
+version = "0.3"
 next_note_id = 0
+debug = True
 
 
 def generate_note_id():
@@ -17,8 +19,10 @@ def generate_note_id():
 def main():
     pygame.init()
     screen = pygame.display.set_mode((frame_width, frame_height))
+    pygame.display.set_caption(f"Tree Hero - v{version}")
     settings = Settings()
     lanes = [Lane(i, settings) for i in range(lane_count)]
+    [l.setup() for l in lanes]
 
     clock = pygame.time.Clock()
     dt = 0
@@ -33,7 +37,8 @@ def main():
 
             for selected_lane in selected_lanes:
                 lanes[selected_lane].add_note(generate_note_id())
-                print(f"Spawning note in ln {selected_lane} at frame_cnt {frame_num}")
+                # TODO: Add logging
+                # print(f"Spawning note in ln {selected_lane} at frame_cnt {frame_num}")
 
         # Figure out which buttons are being pressed
         events = pygame.event.get()
@@ -48,7 +53,8 @@ def main():
         # Redraw the screen
         screen.fill((30, 30, 30))
         # Draw the 'hitbox'
-        pygame.draw.rect(screen, (50, 100, 50), sweet_spot)
+        if debug:
+            pygame.draw.rect(screen, (50, 100, 50), hitbox_visual)
         [lane.draw(screen) for lane in lanes]
         pygame.display.update()
 
