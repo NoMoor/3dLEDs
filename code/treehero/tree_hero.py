@@ -67,6 +67,10 @@ def main():
 
     note_list = parse_chart()
 
+    # load in mp3
+    pygame.mixer.init()
+    pygame.mixer.music.load(os.path.join('treehero', 'songs', 'Anti-Flag - Brandenburg Gate', 'guitar.mp3'))
+
     screen = pygame.display.set_mode((frame_width, frame_height))
     pygame.display.set_caption(f"{game_title} - v{version}")
     settings = Settings()
@@ -78,6 +82,7 @@ def main():
     dt = 0
     lead_time = 2000
 
+    pygame.mixer.music.play()
 
     frame_num = 0
     while True:
