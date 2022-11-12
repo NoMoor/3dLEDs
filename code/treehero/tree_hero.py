@@ -1,3 +1,5 @@
+import glob
+import itertools
 import os.path
 import sys
 from collections import namedtuple
@@ -48,15 +50,6 @@ def generate_note_id():
     return next_note_id
 
 
-def parse_chart() -> Chart:
-    with open(os.path.join('treehero', 'songs', 'Anti-Flag - Brandenburg Gate', 'notes.chart')) as chartfile:
-        chart = chparse.load(chartfile)
-
-    logger.debug(chart.instruments[chparse.MEDIUM][chparse.GUITAR])
-
-    return chart
-
-
 def render_header(screen, state):
     """Renders the header containing the title and the score information."""
     title_surface = title_font.render(game_title, False, title_color)
@@ -99,13 +92,45 @@ def to_ticks(current_time_ms, sync_track, ticks_per_beat) -> float:
     return current_time_min * tpm
 
 
+def load_song(song_folder: str):
+    chart = load_chart(song_folder)
+    load_music(song_folder)
+    return chart
+
+
+def load_chart(song_folder: str) -> Chart:
+    """Loads the chart file found in the given song folder. If none is found, the system exits."""
+    chart_file = os.path.join('treehero', 'songs', song_folder, 'notes.chart')
+
+    assert os.path.exists(chart_file), f"Chart file not found: {chart_file}"
+
+    with open(chart_file) as chartfile:
+        chart = chparse.load(chartfile)
+
+    logger.debug(chart.instruments[chparse.MEDIUM][chparse.GUITAR])
+
+    return chart
+
+
+def load_music(song_folder: str) -> None:
+    """
+    Loads exactly one .mp3 or .ogg in the song_folder into pygame.mixer.music. If no music file is found, the system
+    exits with an error.
+    """
+    files = list(itertools.chain.from_iterable(
+        [glob.glob(os.path.join('treehero', 'songs', song_folder, t)) for t in ('*.ogg', '*.mp3')]))
+
+    assert len(files) == 1, f"Expected to find exactly one music file but found {files}"
+
+    pygame.mixer.music.load(files[0])
+
+
 def main():
     pygame.init()
     initialize_fonts()
 
     # load in mp3
     pygame.mixer.init()
-    pygame.mixer.music.load(os.path.join('treehero', 'songs', 'Anti-Flag - Brandenburg Gate', 'guitar.mp3'))
 
     screen = pygame.display.set_mode((frame_width, frame_height))
     pygame.display.set_caption(f"{game_title} - v{version}")
@@ -117,11 +142,10 @@ def main():
     clock = pygame.time.Clock()
     dt = 0
 
-    chart = parse_chart()
-    note_list = [note for note in chart.instruments[chparse.MEDIUM][chparse.GUITAR] if note.fret <= 4]
+    chart = load_song("Anti-Flag - Brandenburg Gate")
 
+    note_list = [note for note in chart.instruments[chparse.MEDIUM][chparse.GUITAR] if note.fret <= 4]
     chart_offset_ms = float(chart.Offset) * 1000
-    print(chart_offset_ms)
     resolution = chart.Resolution
 
     # Show one frame of notes
