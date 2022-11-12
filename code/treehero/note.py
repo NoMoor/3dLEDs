@@ -2,7 +2,7 @@ import logging
 
 import pygame
 
-from const import note_width, note_height, notes_colors, lane_x, note_speed, note_hit_box_max, note_miss_color, \
+from const import note_width, note_height, notes_colors, lane_x, note_speed_per_ms, note_hit_box_max, note_miss_color, \
     note_hit_box_min, note_hit_color, lane_start_y, lane_end_y
 
 logger = logging.getLogger(__name__)
@@ -55,5 +55,5 @@ class Note(pygame.sprite.Sprite):
             if note_hit_box_min > self.rect.y:
                 self.hittable = not keys[self.lane.settings.keys[self.lane.lane_id]]
 
-        self.rect.move_ip((0, note_speed * dt))
+        self.rect.move_ip((0, note_speed_per_ms * dt))
         self.image.fill(self.color)

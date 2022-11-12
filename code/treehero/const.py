@@ -10,14 +10,14 @@ note_height = 32
 string_width = 3
 lane_width = note_width
 lane_height = 500
-lane_start_y = header_height
-lane_end_y = lane_start_y + lane_height
+lane_target_to_end = 100
+lane_start_to_target = lane_height - lane_target_to_end
 
 # Visual padding to the left and right of the lanes
 lane_outside_padding = 50
 # Visual padding between lanes
 lane_internal_padding = 2
-note_speed = 1 / 5
+note_speed_per_ms = 1 / 5
 fps = 60
 spawn_interval = 30
 frame_height = lane_height + header_height
@@ -29,7 +29,9 @@ title_color = (20, 150, 20)
 score_color = "beige"
 
 # Vertical locations on the screen where we will consider a note 'hittable'
-note_target_y = lane_end_y - 100
+lane_start_y = header_height
+lane_end_y = lane_start_y + lane_height
+note_target_y = lane_end_y - lane_target_to_end
 note_hit_box_height = 30
 note_hit_box_min = note_target_y - note_hit_box_height
 note_hit_box_max = note_target_y + note_hit_box_height
