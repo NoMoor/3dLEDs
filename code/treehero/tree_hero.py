@@ -82,7 +82,6 @@ def initialize_fonts():
 
 
 def main():
-
     pygame.init()
     initialize_fonts()
 
@@ -97,11 +96,11 @@ def main():
     settings = Settings()
     state = State()
     lanes = [Lane(i, settings, state) for i in range(lane_count)]
-    [l.setup() for l in lanes]
+    [lane.setup() for lane in lanes]
 
     clock = pygame.time.Clock()
     dt = 0
-    lead_time = 2000
+    lead_time = 1000 * 10 / note_speed
 
     pygame.mixer.music.play()
 
@@ -113,7 +112,7 @@ def main():
 
         while note_list and note_list[0].time < current_time + lead_time:
             note = note_list.pop(0)
-            lanes[note.fret].add_note(generate_note_id())
+            lanes[note.fret].add_note(note_id=generate_note_id(), note_time=note.time)
             logger.debug("Spawning note in ln %s at time %s", note.fret, current_time)
 
         # Figure out which buttons are being pressed
@@ -124,7 +123,7 @@ def main():
         keys = pygame.key.get_pressed()
 
         # Update physics of the lanes
-        [lane.update(keys, events, dt) for lane in lanes]
+        [lane.update(keys, events, current_time, dt) for lane in lanes]
 
         # Redraw the screen
         screen.fill((30, 30, 30))

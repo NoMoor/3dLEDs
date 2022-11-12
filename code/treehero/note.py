@@ -3,17 +3,19 @@ import logging
 import pygame
 
 from const import note_width, note_height, notes_colors, lane_x, note_speed_per_ms, note_hit_box_max, note_miss_color, \
-    note_hit_box_min, note_hit_color, lane_start_y, lane_end_y
+    note_hit_box_min, note_hit_color, lane_start_y, lane_end_y, note_speed, lane_start_to_target, note_target_y
 
 logger = logging.getLogger(__name__)
+
 
 class Note(pygame.sprite.Sprite):
     """Sprite class for a note."""
 
-    def __init__(self, note_id, lane, *args):
+    def __init__(self, note_id, note_time, lane, *args):
         super().__init__(lane, *args)
         self.lane = lane
         self.note_id = note_id
+        self.time = note_time
         self.image = pygame.Surface((note_width, note_height))
         self.rect = pygame.display.get_surface().get_rect()
         self.color = pygame.Color(notes_colors[self.lane.lane_id])
@@ -26,7 +28,7 @@ class Note(pygame.sprite.Sprite):
         self.was_hit = False
         self.scored = False
 
-    def update(self, keys, events, dt):
+    def update(self, keys, events, current_time, dt):
         # Note goes off-screen.
         if self.rect.y > lane_end_y:
             self.kill()
@@ -55,5 +57,11 @@ class Note(pygame.sprite.Sprite):
             if note_hit_box_min > self.rect.y:
                 self.hittable = not keys[self.lane.settings.keys[self.lane.lane_id]]
 
-        self.rect.move_ip((0, note_speed_per_ms * dt))
+        # Check how long it is between now and when we should be getting to the bottom
+        # Based on that time and the speed, set the height.
+        time_to_target = self.time - current_time
+        total_travel_time = 10_000 / note_speed  # TODO: This is a const / cachable
+        pix_per_ms = lane_start_to_target / total_travel_time
+
+        self.rect.y = note_target_y - int(time_to_target * pix_per_ms)
         self.image.fill(self.color)

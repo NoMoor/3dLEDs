@@ -17,7 +17,15 @@ lane_start_to_target = lane_height - lane_target_to_end
 lane_outside_padding = 50
 # Visual padding between lanes
 lane_internal_padding = 2
+# Number of pixesl to move the note per ms
+# Deprecated: Don't use this.
 note_speed_per_ms = 1 / 5
+
+# Inverse note speed in [1 - 20] where 10 takes 1 second to go down the lane
+# User editable
+note_speed = 10
+
+
 fps = 60
 spawn_interval = 30
 frame_height = lane_height + header_height
