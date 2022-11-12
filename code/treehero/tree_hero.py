@@ -78,6 +78,7 @@ def main():
     dt = 0
     lead_time = 2000
 
+
     frame_num = 0
     while True:
         print(pygame.time.get_ticks())
