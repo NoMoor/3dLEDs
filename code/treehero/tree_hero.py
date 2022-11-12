@@ -1,6 +1,8 @@
+import os.path
 import random
 
 import pygame
+import chparse
 
 from const import *
 from lane import Lane
@@ -18,6 +20,15 @@ def generate_note_id():
     global next_note_id
     next_note_id = next_note_id + 1
     return next_note_id
+
+
+def open_chart():
+    print(os.path.exists('./treehero/songs'))
+
+    with open('./treehero/songs/Through_The_Fire_And_Flames_Piano_Cover/notes.chart') as chartfile:
+        chart = chparse.load(chartfile)
+
+    print(chart.instruments[chparse.EXPERT][chparse.GUITAR])
 
 
 def render_header(screen, state):
@@ -49,6 +60,8 @@ def initialize_fonts():
 def main():
     pygame.init()
     initialize_fonts()
+
+    open_chart()
 
     screen = pygame.display.set_mode((frame_width, frame_height))
     pygame.display.set_caption(f"{game_title} - v{version}")
