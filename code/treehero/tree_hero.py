@@ -1,10 +1,12 @@
 import os.path
 import sys
+from collections import namedtuple
 from logging.handlers import RotatingFileHandler
 
 import pygame
 import logging
 import chparse
+from chparse.chart import Chart
 from chparse.note import Note
 
 from const import *
@@ -36,6 +38,8 @@ debug = True
 title_font = None
 score_font = None
 
+TreeNote = namedtuple('TreeNote', 'time_ms fret')
+
 
 def generate_note_id():
     """Generates the id for th next note."""
@@ -44,15 +48,13 @@ def generate_note_id():
     return next_note_id
 
 
-def parse_chart() -> list[Note]:
+def parse_chart() -> Chart:
     with open(os.path.join('treehero', 'songs', 'Anti-Flag - Brandenburg Gate', 'notes.chart')) as chartfile:
         chart = chparse.load(chartfile)
 
-    logger.debug(chart.instruments[chparse.EXPERT][chparse.GUITAR])
+    logger.debug(chart.instruments[chparse.MEDIUM][chparse.GUITAR])
 
-    guitar = chart.instruments[chparse.EXPERT][chparse.GUITAR]
-
-    return [note for note in guitar if note.fret < 5]
+    return chart
 
 
 def render_header(screen, state):
@@ -81,11 +83,25 @@ def initialize_fonts():
     score_font = pygame.font.SysFont('Comic Sans MS', 30)
 
 
+def to_ticks(current_time_ms, sync_track, ticks_per_beat) -> float:
+    """
+    Takes in the current time (ms), the sync track, and the resolution of the song and returns the current_ms as a
+    value of ticks.
+    """
+    ms_per_minute = 60 * 1000
+    current_time_min = current_time_ms / ms_per_minute
+
+    # TODO: Make sure this has type 'B'
+    # TODO: Adjust the BPM throughout the song. This assumes only one BPM.
+    bpm = sync_track[0].value / 1000
+
+    tpm = ticks_per_beat * bpm
+    return current_time_min * tpm
+
+
 def main():
     pygame.init()
     initialize_fonts()
-
-    note_list = parse_chart()
 
     # load in mp3
     pygame.mixer.init()
@@ -100,20 +116,30 @@ def main():
 
     clock = pygame.time.Clock()
     dt = 0
-    lead_time = 1000 * 10 / note_speed
+
+    chart = parse_chart()
+    note_list = [note for note in chart.instruments[chparse.MEDIUM][chparse.GUITAR] if note.fret <= 4]
+
+    chart_offset_ms = float(chart.Offset) * 1000
+    print(chart_offset_ms)
+    resolution = chart.Resolution
+
+    # Show one frame of notes
+    lead_time_ticks = resolution * 4 * 10 / note_speed
 
     pygame.mixer.music.play()
-
     frame_num = 0
     while True:
-        logger.debug("Time: %s", pygame.time.get_ticks())
-        # Spawn new notes
-        current_time = pygame.time.get_ticks()
+        # Subtract the offset from the play time. Usually, we would start the playback at the offset position
+        # but not all codecs support this. Instead, play the whole song and remove the offset from the position.
+        current_time_ms = pygame.mixer.music.get_pos() - chart_offset_ms
+        current_ticks = to_ticks(current_time_ms, chart.sync_track, resolution)
 
-        while note_list and note_list[0].time < current_time + lead_time:
+        # Load in the notes that should be visible
+        while note_list and note_list[0].time < current_ticks + lead_time_ticks:
             note = note_list.pop(0)
-            lanes[note.fret].add_note(note_id=generate_note_id(), note_time=note.time)
-            logger.debug("Spawning note in ln %s at time %s", note.fret, current_time)
+            lanes[note.fret].add_note(note_id=generate_note_id(), note_ticks=note.time)
+            logger.debug("Spawning note in ln %s at tick %s", note.fret, current_ticks)
 
         # Figure out which buttons are being pressed
         events = pygame.event.get()
@@ -123,7 +149,7 @@ def main():
         keys = pygame.key.get_pressed()
 
         # Update physics of the lanes
-        [lane.update(keys, events, current_time, dt) for lane in lanes]
+        [lane.update(keys, events, current_ticks, dt) for lane in lanes]
 
         # Redraw the screen
         screen.fill((30, 30, 30))

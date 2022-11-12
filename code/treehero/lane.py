@@ -15,8 +15,8 @@ class Lane(pygame.sprite.Group):
         self.lane_id = lane_id
         self.notes = []
 
-    def add_note(self, note_id, note_time):
-        new_note = Note(note_id, note_time, self)
+    def add_note(self, note_id, note_ticks):
+        new_note = Note(note_id, note_ticks, self)
         self.notes.append(new_note)
 
     def setup(self):

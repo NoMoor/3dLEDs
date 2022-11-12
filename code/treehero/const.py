@@ -23,7 +23,7 @@ note_speed_per_ms = 1 / 5
 
 # Inverse note speed in [1 - 20] where 10 takes 1 second to go down the lane
 # User editable
-note_speed = 10
+note_speed = 5
 
 
 fps = 60
