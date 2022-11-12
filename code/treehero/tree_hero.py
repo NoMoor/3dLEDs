@@ -106,8 +106,7 @@ def load_chart(song_folder: str) -> Chart:
 
     with open(chart_file) as chartfile:
         chart = chparse.load(chartfile)
-
-    logger.debug(chart.instruments[chparse.MEDIUM][chparse.GUITAR])
+    logger.debug(chart.instruments[chparse.EXPERT][chparse.GUITAR])
 
     return chart
 
@@ -142,9 +141,13 @@ def main():
     clock = pygame.time.Clock()
     dt = 0
 
-    chart = load_song("Anti-Flag - Brandenburg Gate")
+    chart = load_song("Rage Against the Machine - Killing in the Name")
 
-    note_list = [note for note in chart.instruments[chparse.MEDIUM][chparse.GUITAR] if note.fret <= 4]
+    # added this comparison because for some reason it was finding Event objects inside of the Guitar Note section
+    first_note = chart.instruments[chparse.EXPERT][chparse.GUITAR][0]
+    print(first_note)
+    note_list = [note for note in chart.instruments[chparse.EXPERT][chparse.GUITAR] if type(note) == type(first_note) and note.fret <= 4]
+    print(note_list)
     chart_offset_ms = float(chart.Offset) * 1000
     resolution = chart.Resolution
 
