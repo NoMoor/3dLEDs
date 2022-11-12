@@ -82,27 +82,17 @@ def main():
     dt = 0
     lead_time = 2000
 
+    pygame.mixer.music.set_volume(0.2)
     pygame.mixer.music.play()
 
     frame_num = 0
     while True:
-        print(pygame.time.get_ticks())
         # Spawn new notes
         current_time = pygame.time.get_ticks()
-        upcoming_notes = []
 
-        print(note_list[0])
         while note_list and note_list[0].time < current_time + lead_time:
             note = note_list.pop(0)
             lanes[note.fret].add_note(generate_note_id())
-
-
-
-
-
-        # lanes[selected_lane].add_note(generate_note_id())
-        # TODO: Add logging
-        # print(f"Spawning note in ln {selected_lane} at frame_cnt {frame_num}")
 
         # Figure out which buttons are being pressed
         events = pygame.event.get()
