@@ -1,20 +1,40 @@
 import os.path
-import random
+import sys
+from logging.handlers import RotatingFileHandler
 
 import pygame
+import logging
 import chparse
 from chparse.note import Note
 
 from const import *
 from lane import Lane
 
+# Configure logging
+log_formatter = logging.Formatter(fmt="%(asctime)s - %(name)s - [%(levelname)s]: %(message)s",
+                                  datefmt='%Y/%m/%d %H:%M:%S')
+root_logger = logging.getLogger()
+root_logger.setLevel(logging.DEBUG)
+
+file_handler = RotatingFileHandler(os.path.join("..", "logs", "tree_hero.log"), maxBytes=5000000, backupCount=5)
+file_handler.setFormatter(log_formatter)
+file_handler.setLevel(level=logging.DEBUG)
+root_logger.addHandler(file_handler)
+
+console_handler = logging.StreamHandler(sys.stdout)
+console_handler.setLevel(logging.INFO)
+console_handler.setFormatter(log_formatter)
+root_logger.addHandler(console_handler)
+
+logger = logging.getLogger(__name__)
+
+# Start code
 version = "0.3"
 next_note_id = 0
 debug = True
 
 title_font = None
 score_font = None
-
 
 def generate_note_id():
     """Generates the id for th next note."""
@@ -27,8 +47,7 @@ def parse_chart() -> list[Note]:
     with open(os.path.join('treehero', 'songs', 'Anti-Flag - Brandenburg Gate', 'notes.chart')) as chartfile:
         chart = chparse.load(chartfile)
 
-    # if debug:
-    #     print(chart.instruments[chparse.EXPERT][chparse.GUITAR])
+    logger.debug(chart.instruments[chparse.EXPERT][chparse.GUITAR])
 
     guitar = chart.instruments[chparse.EXPERT][chparse.GUITAR]
 
@@ -62,6 +81,7 @@ def initialize_fonts():
 
 
 def main():
+
     pygame.init()
     initialize_fonts()
 
@@ -86,23 +106,14 @@ def main():
 
     frame_num = 0
     while True:
-        print(pygame.time.get_ticks())
+        logger.debug("Time: %s", pygame.time.get_ticks())
         # Spawn new notes
         current_time = pygame.time.get_ticks()
-        upcoming_notes = []
 
-        print(note_list[0])
         while note_list and note_list[0].time < current_time + lead_time:
             note = note_list.pop(0)
             lanes[note.fret].add_note(generate_note_id())
-
-
-
-
-
-        # lanes[selected_lane].add_note(generate_note_id())
-        # TODO: Add logging
-        # print(f"Spawning note in ln {selected_lane} at frame_cnt {frame_num}")
+            logger.debug("Spawning note in ln %s at time %s", note.fret, current_time)
 
         # Figure out which buttons are being pressed
         events = pygame.event.get()
@@ -118,7 +129,7 @@ def main():
         screen.fill((30, 30, 30))
 
         if debug:
-            # Draw the hitbox
+            # Draw the hit box
             pygame.draw.rect(screen, (50, 100, 50), hitbox_visual)
 
         render_header(screen, state)

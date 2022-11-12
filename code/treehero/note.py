@@ -1,8 +1,11 @@
+import logging
+
 import pygame
 
 from const import note_width, note_height, notes_colors, lane_x, note_speed, note_hit_box_max, note_miss_color, \
     note_hit_box_min, note_hit_color, lane_start_y, lane_end_y
 
+logger = logging.getLogger(__name__)
 
 class Note(pygame.sprite.Sprite):
     """Sprite class for a note."""
@@ -35,14 +38,14 @@ class Note(pygame.sprite.Sprite):
             elif not self.scored:
                 self.color = pygame.Color(note_miss_color)
                 self.lane.state.note_miss()
-                print(f"Miss note - i:{self.note_id} y:{self.rect.y}")
+                logger.info(f"Miss note - i:%s y:%s", self.note_id, self.rect.y)
             self.scored = True
         # If the note can be hit and is in the sweet spot and the key is pressed, mark it as hit.
         elif self.hittable and \
                 note_hit_box_min < self.rect.y < note_hit_box_max and \
                 keys[self.lane.settings.keys[self.lane.lane_id]]:
             if not self.was_hit:
-                print(f"Hitt note - i:{self.note_id} y:{self.rect.y}")
+                logger.info(f"Hitt note - i:{self.note_id} y:{self.rect.y}")
                 self.color = pygame.Color(note_hit_color)
                 self.was_hit = True
         else:
