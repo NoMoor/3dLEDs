@@ -23,13 +23,18 @@ def generate_note_id():
 
 
 def open_chart():
+    print(os.getcwd())
     print(os.path.exists('./treehero/songs'))
 
-    with open('./treehero/songs/Through_The_Fire_And_Flames_Piano_Cover/notes.chart') as chartfile:
+    # with open('treehero/songs/Through_The_Fire_And_Flames_Piano_Cover/notes.chart') as chartfile:
+    with open('treehero/songs/Anti-Flag - Brandenburg Gate/notes.chart') as chartfile:
+
         chart = chparse.load(chartfile)
 
-    print(chart.instruments[chparse.EXPERT][chparse.GUITAR])
+    if debug:
+        print(chart.instruments[chparse.EXPERT][chparse.GUITAR])
 
+    return chart
 
 def render_header(screen, state):
     """Renders the header containing the title and the score information."""
