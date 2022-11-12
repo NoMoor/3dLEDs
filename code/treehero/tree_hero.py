@@ -36,6 +36,7 @@ debug = True
 title_font = None
 score_font = None
 
+
 def generate_note_id():
     """Generates the id for th next note."""
     global next_note_id
