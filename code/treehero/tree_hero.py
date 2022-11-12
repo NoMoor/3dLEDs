@@ -3,6 +3,7 @@ import random
 
 import pygame
 import chparse
+from chparse.note import Note
 
 from const import *
 from lane import Lane
@@ -22,14 +23,17 @@ def generate_note_id():
     return next_note_id
 
 
-def open_chart():
+def parse_chart() -> list[Note]:
     with open(os.path.join('treehero', 'songs', 'Anti-Flag - Brandenburg Gate', 'notes.chart')) as chartfile:
         chart = chparse.load(chartfile)
 
-    if debug:
-        print(chart.instruments[chparse.EXPERT][chparse.GUITAR])
+    # if debug:
+    #     print(chart.instruments[chparse.EXPERT][chparse.GUITAR])
 
-    return chart
+    guitar = chart.instruments[chparse.EXPERT][chparse.GUITAR]
+
+    return [note for note in guitar if note.fret < 5]
+
 
 def render_header(screen, state):
     """Renders the header containing the title and the score information."""
@@ -61,7 +65,7 @@ def main():
     pygame.init()
     initialize_fonts()
 
-    open_chart()
+    note_list = parse_chart()
 
     screen = pygame.display.set_mode((frame_width, frame_height))
     pygame.display.set_caption(f"{game_title} - v{version}")
@@ -72,19 +76,27 @@ def main():
 
     clock = pygame.time.Clock()
     dt = 0
+    lead_time = 2000
 
     frame_num = 0
     while True:
+        print(pygame.time.get_ticks())
         # Spawn new notes
-        if not frame_num % spawn_interval:
-            # Randomly pick 0, 1, or 2 notes to spawn.
-            note_count = random.choices([0, 1, 2], [.45, .5, .05])[0]  # Returns a list. Get the only element.
-            selected_lanes = random.sample(range(lane_count), note_count)
+        current_time = pygame.time.get_ticks()
+        upcoming_notes = []
 
-            for selected_lane in selected_lanes:
-                lanes[selected_lane].add_note(generate_note_id())
-                # TODO: Add logging
-                # print(f"Spawning note in ln {selected_lane} at frame_cnt {frame_num}")
+        print(note_list[0])
+        while note_list and note_list[0].time < current_time + lead_time:
+            note = note_list.pop(0)
+            lanes[note.fret].add_note(generate_note_id())
+
+
+
+
+
+        # lanes[selected_lane].add_note(generate_note_id())
+        # TODO: Add logging
+        # print(f"Spawning note in ln {selected_lane} at frame_cnt {frame_num}")
 
         # Figure out which buttons are being pressed
         events = pygame.event.get()
