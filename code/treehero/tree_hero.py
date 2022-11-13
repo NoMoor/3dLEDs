@@ -8,6 +8,7 @@ from logging.handlers import RotatingFileHandler
 import pygame
 import logging
 import chparse
+from chparse import BPM
 from chparse.chart import Chart
 from chparse.note import Note
 
@@ -84,9 +85,9 @@ def to_ticks(current_time_ms, sync_track, ticks_per_beat) -> float:
     ms_per_minute = 60 * 1000
     current_time_min = current_time_ms / ms_per_minute
 
-    # TODO: Make sure this has type 'B'
     # TODO: Adjust the BPM throughout the song. This assumes only one BPM.
-    bpm = sync_track[0].value / 1000
+    first_sync_marker = next(x for x in sync_track if x.kind == BPM)
+    bpm = first_sync_marker.value / 1000
 
     tpm = ticks_per_beat * bpm
     return current_time_min * tpm
@@ -141,13 +142,14 @@ def main():
     clock = pygame.time.Clock()
     dt = 0
 
-    chart = load_song("Rage Against the Machine - Killing in the Name")
+    chart = load_song("Rage Against the Machine - Calm Like a Bomb")
 
     # added this comparison because for some reason it was finding Event objects inside of the Guitar Note section
     first_note = chart.instruments[chparse.EXPERT][chparse.GUITAR][0]
-    print(first_note)
     note_list = [note for note in chart.instruments[chparse.EXPERT][chparse.GUITAR] if type(note) == type(first_note) and note.fret <= 4]
-    print(note_list)
+    logger.info(f"Loaded {len(note_list)} notes from the song")
+    logger.info(f"first note: {first_note}")
+
     chart_offset_ms = float(chart.Offset) * 1000
     resolution = chart.Resolution
 
@@ -161,12 +163,13 @@ def main():
         # but not all codecs support this. Instead, play the whole song and remove the offset from the position.
         current_time_ms = pygame.mixer.music.get_pos() - chart_offset_ms
         current_ticks = to_ticks(current_time_ms, chart.sync_track, resolution)
+        logger.info(f"Current time {current_ticks}")
 
         # Load in the notes that should be visible
         while note_list and note_list[0].time < current_ticks + lead_time_ticks:
             note = note_list.pop(0)
             lanes[note.fret].add_note(note_id=generate_note_id(), note_ticks=note.time)
-            logger.debug("Spawning note in ln %s at tick %s", note.fret, current_ticks)
+            logger.info("Spawning note in ln %s at tick %s", note.fret, current_ticks)
 
         # Figure out which buttons are being pressed
         events = pygame.event.get()
