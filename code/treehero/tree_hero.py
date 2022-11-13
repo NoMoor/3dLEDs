@@ -142,7 +142,7 @@ def main():
     clock = pygame.time.Clock()
     dt = 0
 
-    chart = load_song("Rage Against the Machine - Calm Like a Bomb")
+    chart = load_song("Rage Against the Machine - Killing in the Name")
 
     # added this comparison because for some reason it was finding Event objects inside of the Guitar Note section
     first_note = chart.instruments[chparse.EXPERT][chparse.GUITAR][0]
@@ -163,7 +163,6 @@ def main():
         # but not all codecs support this. Instead, play the whole song and remove the offset from the position.
         current_time_ms = pygame.mixer.music.get_pos() - chart_offset_ms
         current_ticks = to_ticks(current_time_ms, chart.sync_track, resolution)
-        logger.info(f"Current time {current_ticks}")
 
         # Load in the notes that should be visible
         while note_list and note_list[0].time < current_ticks + lead_time_ticks:
