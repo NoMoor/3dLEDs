@@ -6,10 +6,13 @@ from collections import namedtuple
 from logging.handlers import RotatingFileHandler
 
 import logging
+from typing import Optional
+
 import chparse
 from chparse import BPM
 from chparse.chart import Chart
 from pygame import Surface
+from pygame_menu import Menu
 
 from const import *
 from lane import Lane
@@ -43,8 +46,8 @@ debug = True
 title_font = None
 score_font = None
 
-TreeNote = namedtuple('TreeNote', 'time_ms fret')
-
+main_menu: Optional['pygame_menu.Menu'] = None
+surface: Optional['pygame_menu.Menu'] = None
 
 def generate_note_id():
     """Generates the id for th next note."""
@@ -154,6 +157,9 @@ def play_song(screen: Surface):
 
     pygame.mixer.music.play()
     frame_num = 0
+
+    paused = False
+
     while True:
         # Subtract the offset from the play time. Usually, we would start the playback at the offset position
         # but not all codecs support this. Instead, play the whole song and remove the offset from the position.
@@ -169,42 +175,57 @@ def play_song(screen: Surface):
         # Figure out which buttons are being pressed
         events = pygame.event.get()
         for e in events:
-            if e.type == pygame.QUIT or (e.type == pygame.KEYDOWN and e.key == pygame.K_BACKSPACE):
+            if e.type == pygame.KEYDOWN and e.key == pygame.K_ESCAPE:
+                # Stop music and jump back to the menu
+                paused = not paused
+
+                if paused:
+                    pygame.mixer.music.pause()
+                else:
+                    pygame.mixer.music.unpause()
+
+            if e.type == pygame.QUIT:
                 pygame.mixer.music.stop()
                 return
         keys = pygame.key.get_pressed()
 
-        # Update physics of the lanes
-        [lane.update(keys, events, current_ticks, dt) for lane in lanes]
+        if not paused:
+            # Update physics of the lanes
+            [lane.update(keys, events, current_ticks, dt) for lane in lanes]
 
-        # Redraw the screen
-        screen.fill((30, 30, 30))
+            # Redraw the screen
+            screen.fill((30, 30, 30))
 
-        if debug:
-            # Draw the hit box
-            pygame.draw.rect(screen, (50, 100, 50), hitbox_visual)
+            if debug:
+                # Draw the hit box
+                pygame.draw.rect(screen, (50, 100, 50), hitbox_visual)
 
-        render_header(screen, state)
-        [lane.draw(screen) for lane in lanes]
-        pygame.display.update()
+            render_header(screen, state)
+            [lane.draw(screen) for lane in lanes]
+            pygame.display.update()
 
         # Do frame maintenance
         dt = clock.tick(fps)
         frame_num = frame_num + 1
 
 
-def start_the_game(screen: Surface):
+def start_the_game():
     """Launches the game itself."""
+
+    menu.disable()
+
     logger.info("Launch the game!")
-    play_song(screen)
+    play_song(surface)
 
 
-def launch_menu(screen: Surface):
+def launch_menu():
     """Shows the menu for the game."""
+    global menu
+
     menu = pygame_menu.Menu('Welcome', frame_width, frame_height, theme=pygame_menu.themes.THEME_BLUE)
-    menu.add.button('Play', lambda: start_the_game(screen))
+    menu.add.button('Play', start_the_game)
     menu.add.button('Quit', pygame_menu.events.EXIT)
-    menu.mainloop(screen)
+    menu.mainloop(surface)
 
 
 def main():
@@ -214,8 +235,10 @@ def main():
     # load in mp3
     pygame.mixer.init()
 
-    screen = pygame.display.set_mode((frame_width, frame_height))
-    launch_menu(screen)
+    global surface
+
+    surface = pygame.display.set_mode((frame_width, frame_height))
+    launch_menu()
 
 
 if __name__ == '__main__':
