@@ -7,4 +7,5 @@ Pillow~=8.4.0
 grpcio~=1.50.0
 grpcio-tools~=1.50.0
 pygame~=2.1.2
+pygame-menu~=4.2.8
 chparse~=0.0.3

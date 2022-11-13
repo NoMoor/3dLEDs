@@ -5,15 +5,17 @@ import sys
 from collections import namedtuple
 from logging.handlers import RotatingFileHandler
 
-import pygame
 import logging
 import chparse
 from chparse import BPM
 from chparse.chart import Chart
-from chparse.note import Note
+from pygame import Surface
 
 from const import *
 from lane import Lane
+
+import pygame
+import pygame_menu
 
 # Configure logging
 log_formatter = logging.Formatter(fmt="%(asctime)s - %(name)s - [%(levelname)s]: %(message)s",
@@ -125,14 +127,7 @@ def load_music(song_folder: str) -> None:
     pygame.mixer.music.load(files[0])
 
 
-def main():
-    pygame.init()
-    initialize_fonts()
-
-    # load in mp3
-    pygame.mixer.init()
-
-    screen = pygame.display.set_mode((frame_width, frame_height))
+def play_song(screen: Surface):
     pygame.display.set_caption(f"{game_title} - v{version}")
     settings = Settings()
     state = State()
@@ -146,7 +141,8 @@ def main():
 
     # added this comparison because for some reason it was finding Event objects inside of the Guitar Note section
     first_note = chart.instruments[chparse.EXPERT][chparse.GUITAR][0]
-    note_list = [note for note in chart.instruments[chparse.EXPERT][chparse.GUITAR] if type(note) == type(first_note) and note.fret <= 4]
+    note_list = [note for note in chart.instruments[chparse.EXPERT][chparse.GUITAR] if
+                 type(note) == type(first_note) and note.fret <= 4]
     logger.info(f"Loaded {len(note_list)} notes from the song")
     logger.info(f"first note: {first_note}")
 
@@ -173,7 +169,8 @@ def main():
         # Figure out which buttons are being pressed
         events = pygame.event.get()
         for e in events:
-            if e.type == pygame.QUIT:
+            if e.type == pygame.QUIT or (e.type == pygame.KEYDOWN and e.key == pygame.K_BACKSPACE):
+                pygame.mixer.music.stop()
                 return
         keys = pygame.key.get_pressed()
 
@@ -194,6 +191,31 @@ def main():
         # Do frame maintenance
         dt = clock.tick(fps)
         frame_num = frame_num + 1
+
+
+def start_the_game(screen: Surface):
+    """Launches the game itself."""
+    logger.info("Launch the game!")
+    play_song(screen)
+
+
+def launch_menu(screen: Surface):
+    """Shows the menu for the game."""
+    menu = pygame_menu.Menu('Welcome', frame_width, frame_height, theme=pygame_menu.themes.THEME_BLUE)
+    menu.add.button('Play', lambda: start_the_game(screen))
+    menu.add.button('Quit', pygame_menu.events.EXIT)
+    menu.mainloop(screen)
+
+
+def main():
+    pygame.init()
+    initialize_fonts()
+
+    # load in mp3
+    pygame.mixer.init()
+
+    screen = pygame.display.set_mode((frame_width, frame_height))
+    launch_menu(screen)
 
 
 if __name__ == '__main__':
