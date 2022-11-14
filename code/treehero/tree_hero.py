@@ -124,15 +124,13 @@ def play_song(screen: Surface, song: Song, difficulty=chparse.EXPERT):
     clock = pygame.time.Clock()
     dt = 0
 
-    chart: TreeChart = song.tree_chart
+    chart = song.chart
     load_music(song.folder)
 
-    # added this comparison because for some reason it was finding Event objects inside of the Guitar Note section
-    first_note = chart.get_difficulty(difficulty)[0]
-    note_list = [note for note in chart.get_difficulty(difficulty) if
-                 type(note) == type(first_note) and note.fret <= 4]
+    note_list = [note for note in chart.get_difficulty(difficulty) if note.fret <= 4]
+
     logger.info(f"Loaded {len(note_list)} notes from {chart.name}")
-    logger.info(f"first note: {first_note}")
+    logger.info(f"first note: {chart.get_difficulty(difficulty)[0]}")
 
     chart_offset_ms = float(chart.offset) * 1000
     resolution = chart.resolution
@@ -156,7 +154,7 @@ def play_song(screen: Surface, song: Song, difficulty=chparse.EXPERT):
         while note_list and note_list[0].time < current_ticks + lead_time_ticks:
             note = note_list.pop(0)
             lanes[note.fret].add_note(note_id=generate_note_id(), note_ticks=note.time)
-            logger.info("Spawning note in ln %s at tick %s", note.fret, current_ticks)
+            logger.debug("Spawn tk:[%s] ln[%s]", int(current_ticks), note.fret)
 
         # Figure out which buttons are being pressed
         events = pygame.event.get()
@@ -202,9 +200,6 @@ def start_the_game(song, difficulty):
 
     logger.info(f"Launching {song.folder} at {difficulty}")
 
-    # TODO(chart-bug): Force the instruments to reload. Remove this once chart is fixed.
-    load_chart(song.folder)
-
     play_song(surface, song, difficulty)
 
 
@@ -218,7 +213,7 @@ def difficulty_select(song: Song):
         theme=copied_theme
     )
 
-    difficulties = song.tree_chart.get_difficulties()
+    difficulties = song.chart.get_difficulties()
     difficulties.sort(key=[chparse.EASY, chparse.MEDIUM, chparse.HARD, chparse.EXPERT].index)
 
     for difficulty in difficulties:
@@ -243,7 +238,7 @@ def song_select_submenu():
     installed_songs = get_all_songs()
 
     for song in installed_songs:
-        if song.tree_chart:
+        if song.chart:
             song_select_menu.add.button(f"{song.artist} - {song.name}", difficulty_select(song))
         else:
             song_select_menu.add.button(f'Error parsing chart: \'{song.folder}\'', action=None,

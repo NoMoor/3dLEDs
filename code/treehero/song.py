@@ -37,7 +37,7 @@ class Song:
         self.name = name
         self.artist = artist
         self.folder = folder
-        self.tree_chart = tree_chart
+        self.chart = tree_chart
 
 
 class Guitar:
@@ -73,7 +73,11 @@ class Guitar:
 
 def get_guitar(chparse_chart, difficulty) -> list[Note]:
     instruments = chparse_chart.instruments[difficulty]
-    return instruments[chparse.GUITAR] if instruments else None
+
+    if not instruments:
+        return None
+
+    return [n for n in instruments[chparse.GUITAR] if type(n) == chparse.note.Note]
 
 
 def load_chart(song_folder: str) -> TreeChart:
