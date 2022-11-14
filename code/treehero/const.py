@@ -6,7 +6,7 @@ game_title = "Tree Hero"
 
 lane_count = 5
 note_width = 32
-note_height = 32
+note_height = 8
 string_width = 3
 lane_width = note_width
 lane_height = 500
@@ -25,11 +25,13 @@ note_speed_per_ms = 1 / 5
 # User editable
 note_speed = 5
 
+highway_width = (lane_outside_padding * 2) + (note_width * lane_count) + (lane_internal_padding * (lane_count - 1))
 
 fps = 60
 spawn_interval = 30
 frame_height = lane_height + header_height
-frame_width = (lane_outside_padding * 2) + (note_width * lane_count) + (lane_internal_padding * (lane_count - 1))
+frame_padding = 150
+frame_width = highway_width + (frame_padding * 2)
 notes_colors = ["palegreen2", "firebrick1", "goldenrod2", "dodgerblue1", "coral"]
 note_miss_color = "orangered"
 note_hit_color = "chartreuse2"
@@ -45,10 +47,10 @@ note_hit_box_min = note_target_y - note_hit_box_height
 note_hit_box_max = note_target_y + note_hit_box_height
 
 # Visual box drawn on the screen to indicate where to hit notes.
-hitbox_visual = pygame.Rect(0, note_hit_box_min, frame_width, note_hit_box_height * 2)
+hitbox_visual = pygame.Rect(frame_padding, note_hit_box_min, highway_width, note_hit_box_height * 2)
 
 def lane_x(lane_id):
-    return lane_outside_padding + (note_width + lane_internal_padding) * lane_id
+    return frame_padding + lane_outside_padding + (note_width + lane_internal_padding) * lane_id
 
 
 def lane_x_center(lane_id):

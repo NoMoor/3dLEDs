@@ -2,7 +2,7 @@ import glob
 import itertools
 import os.path
 import sys
-from collections import namedtuple
+
 from logging.handlers import RotatingFileHandler
 
 import logging
@@ -12,7 +12,8 @@ import chparse
 from chparse import BPM
 from chparse.chart import Chart
 from pygame import Surface
-from pygame_menu import Menu
+from pygame.font import Font
+from collections import namedtuple
 
 from const import *
 from lane import Lane
@@ -43,11 +44,15 @@ version = "0.3"
 next_note_id = 0
 debug = True
 
-title_font = None
-score_font = None
+menu_theme = pygame_menu.themes.THEME_DARK
 
+title_font: Optional['Font'] = None
+score_font: Optional['Font'] = None
+
+SONG = ["Rage Against the Machine - Killing in the Name"]
 main_menu: Optional['pygame_menu.Menu'] = None
 surface: Optional['pygame_menu.Menu'] = None
+
 
 def generate_note_id():
     """Generates the id for th next note."""
@@ -131,7 +136,7 @@ def load_music(song_folder: str) -> None:
     pygame.mixer.music.load(files[0])
 
 
-def play_song(screen: Surface):
+def play_song(screen: Surface, song: str):
     pygame.display.set_caption(f"{game_title} - v{version}")
     settings = Settings()
     state = State()
@@ -141,7 +146,7 @@ def play_song(screen: Surface):
     clock = pygame.time.Clock()
     dt = 0
 
-    chart = load_song("Rage Against the Machine - Calm Like a Bomb")
+    chart = load_song(song)
 
     # added this comparison because for some reason it was finding Event objects inside of the Guitar Note section
     first_note = chart.instruments[chparse.EXPERT][chparse.GUITAR][0]
@@ -210,21 +215,56 @@ def play_song(screen: Surface):
         frame_num = frame_num + 1
 
 
-def start_the_game():
+def start_the_game(song):
     """Launches the game itself."""
 
     menu.disable()
 
-    logger.info("Launch the game!")
-    play_song(surface)
+    logger.info(f"Launching {song}")
+    play_song(surface, song.folder)
+
+
+Song = namedtuple('Song', 'folder chart difficulties has_music')
+
+def get_all_songs():
+    root_song_dir = os.path.join('treehero', 'songs', '')
+    song_folders = [p.removeprefix(root_song_dir) for p in glob.glob(f"{root_song_dir}*")]
+
+    songs = list(map(make_song, song_folders))
+    songs.sort(key=lambda s: (s.chart.Artist, s.chart.Name))
+
+    return songs
+
+def make_song(folder: str) -> Song:
+    chart = load_chart(folder)
+    difficulties = ''
+    return Song(folder, chart, difficulties, True)
+
+def song_select_submenu():
+    copied_theme = menu_theme.copy()
+    copied_theme.widget_font_size = 20
+    song_select_menu = pygame_menu.menu.Menu(
+        "Song select",
+        frame_width,
+        frame_height,
+        theme=copied_theme
+    )
+
+    installed_songs = get_all_songs()
+
+    for song in installed_songs:
+        song_select_menu.add.button(f"{song.chart.Artist} - {song.chart.Name}", start_the_game, song)
+
+    song_select_menu.add.button('Return to main menu', pygame_menu.events.BACK, font_color="gray37")
+    return song_select_menu
 
 
 def launch_menu():
     """Shows the menu for the game."""
     global menu
 
-    menu = pygame_menu.Menu('Welcome', frame_width, frame_height, theme=pygame_menu.themes.THEME_BLUE)
-    menu.add.button('Play', start_the_game)
+    menu = pygame_menu.Menu('Welcome', frame_width, frame_height, theme=menu_theme)
+    menu.add.button('Play', song_select_submenu())
     menu.add.button('Quit', pygame_menu.events.EXIT)
     menu.mainloop(surface)
 
