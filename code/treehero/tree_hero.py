@@ -49,9 +49,10 @@ menu_theme = pygame_menu.themes.THEME_DARK
 title_font: Optional['Font'] = None
 score_font: Optional['Font'] = None
 
-SONG = ["Rage Against the Machine - Killing in the Name"]
 main_menu: Optional['pygame_menu.Menu'] = None
 surface: Optional['pygame_menu.Menu'] = None
+
+Song = namedtuple('Song', 'folder artist name chart has_music')
 
 
 def generate_note_id():
@@ -103,23 +104,18 @@ def to_ticks(current_time_ms, sync_track, ticks_per_beat) -> float:
     return current_time_min * tpm
 
 
-def load_song(song_folder: str):
-    chart = load_chart(song_folder)
-    load_music(song_folder)
-    return chart
-
-
 def load_chart(song_folder: str) -> Chart:
     """Loads the chart file found in the given song folder. If none is found, the system exits."""
     chart_file = os.path.join('treehero', 'songs', song_folder, 'notes.chart')
 
     assert os.path.exists(chart_file), f"Chart file not found: {chart_file}"
 
+    # TODO(chart-bug): Get rid of this clearing of state once charts are independent
+    [v.clear() for v in Chart.instruments.values()]
     with open(chart_file, mode='r', encoding='utf-8-sig') as chartfile:
         chart = chparse.load(chartfile)
 
-    # logger.debug(chart.instruments[chparse.EXPERT][chparse.GUITAR])
-
+    # TODO(chart-bug): Chart is broken. Need to copy this chart to our own object.
     return chart
 
 
@@ -136,7 +132,7 @@ def load_music(song_folder: str) -> None:
     pygame.mixer.music.load(files[0])
 
 
-def play_song(screen: Surface, song: str):
+def play_song(screen: Surface, song: Song, difficulty=chparse.EXPERT):
     pygame.display.set_caption(f"{game_title} - v{version}")
     settings = Settings()
     state = State()
@@ -146,13 +142,14 @@ def play_song(screen: Surface, song: str):
     clock = pygame.time.Clock()
     dt = 0
 
-    chart = load_song(song)
+    chart = song.chart
+    load_music(song.folder)
 
     # added this comparison because for some reason it was finding Event objects inside of the Guitar Note section
-    first_note = chart.instruments[chparse.EXPERT][chparse.GUITAR][0]
-    note_list = [note for note in chart.instruments[chparse.EXPERT][chparse.GUITAR] if
+    first_note = chart.instruments[difficulty][chparse.GUITAR][0]
+    note_list = [note for note in chart.instruments[difficulty][chparse.GUITAR] if
                  type(note) == type(first_note) and note.fret <= 4]
-    logger.info(f"Loaded {len(note_list)} notes from the song")
+    logger.info(f"Loaded {len(note_list)} notes from {chart.Name}")
     logger.info(f"first note: {first_note}")
 
     chart_offset_ms = float(chart.Offset) * 1000
@@ -172,6 +169,7 @@ def play_song(screen: Surface, song: str):
         current_time_ms = pygame.mixer.music.get_pos() - chart_offset_ms
         current_ticks = to_ticks(current_time_ms, chart.sync_track, resolution)
 
+        logger.debug(f"crr: {current_ticks}")
         # Load in the notes that should be visible
         while note_list and note_list[0].time < current_ticks + lead_time_ticks:
             note = note_list.pop(0)
@@ -215,32 +213,64 @@ def play_song(screen: Surface, song: str):
         frame_num = frame_num + 1
 
 
-def start_the_game(song):
+def start_the_game(song, difficulty):
     """Launches the game itself."""
 
     menu.disable()
 
-    logger.info(f"Launching {song}")
-    play_song(surface, song.folder)
+    logger.info(f"Launching {song.folder} at {difficulty}")
 
+    # TODO(chart-bug): Force the instruments to reload. Remove this once chart is fixed.
+    load_chart(song.folder)
 
-Song = namedtuple('Song', 'folder artist name chart difficulties has_music')
+    play_song(surface, song, difficulty)
+
 
 def get_all_songs():
+    """Returns all the folders and metadata for songs."""
     root_song_dir = os.path.join('treehero', 'songs', '')
     song_folders = [p.removeprefix(root_song_dir) for p in glob.glob(f"{root_song_dir}*")]
-
-    songs = list(map(make_song, song_folders))
-    songs.sort(key=lambda s: (s.artist, s.name))
+    songs = [make_song(song_folder) for song_folder in song_folders]
 
     return songs
 
+
 def make_song(folder: str) -> Song:
+    """Creates the song object. Used for song select on the menu."""
     chart = load_chart(folder)
     artist = chart.Artist if chart else folder
     name = chart.Name if chart else '-'
-    difficulties = ''
-    return Song(folder, artist, name, chart, difficulties, True)
+
+    has_music = bool(list(itertools.chain.from_iterable(
+        [glob.glob(os.path.join('treehero', 'songs', folder, t)) for t in ('*.ogg', '*.mp3')])))
+
+    return Song(folder, artist, name, chart, has_music)
+
+
+def difficulty_select(song: Song):
+    copied_theme = menu_theme.copy()
+    copied_theme.widget_font_size = 20
+    difficulty_select_menu = pygame_menu.menu.Menu(
+        f"Difficulty select - {song.name}",
+        frame_width,
+        frame_height,
+        theme=copied_theme
+    )
+
+    # TODO(chart-bug): Force the instruments to reload. Remove this once chart is fixed.
+    load_chart(song.folder)
+
+    difficulties = [k for k, v in song.chart.instruments.items() if not k == chparse.NA and len(v) > 0]
+    difficulties.sort(key=[chparse.EASY, chparse.MEDIUM, chparse.HARD, chparse.EXPERT].index)
+
+    for difficulty in difficulties:
+        difficulty_select_menu.add.button(
+            f"{difficulty.name} - {len(song.chart.instruments[difficulty][chparse.GUITAR])}", start_the_game, song,
+            difficulty)
+
+    difficulty_select_menu.add.button('Back', pygame_menu.events.BACK, font_color="gray37")
+    return difficulty_select_menu
+
 
 def song_select_submenu():
     copied_theme = menu_theme.copy()
@@ -256,9 +286,11 @@ def song_select_submenu():
 
     for song in installed_songs:
         if song.chart:
-            song_select_menu.add.button(f"{song.artist} - {song.name}", start_the_game, song)
+            song_select_menu.add.button(f"{song.artist} - {song.name}", difficulty_select(song))
+            logger.info(f"{song.name} - {len(song.chart.instruments[chparse.EXPERT][chparse.GUITAR])}")
         else:
-            song_select_menu.add.button(f'Error parsing chart: \'{song.folder}\'', action=None, selection_color='firebrick1', font_color='firebrick3')
+            song_select_menu.add.button(f'Error parsing chart: \'{song.folder}\'', action=None,
+                                        selection_color='firebrick1', font_color='firebrick3')
 
     song_select_menu.add.button('Return to main menu', pygame_menu.events.BACK, font_color="gray37")
     return song_select_menu
