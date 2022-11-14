@@ -10,10 +10,8 @@ from typing import Optional
 
 import chparse
 from chparse import BPM
-from chparse.chart import Chart
 from pygame import Surface
 from pygame.font import Font
-from collections import namedtuple
 
 from const import *
 from lane import Lane
@@ -22,6 +20,8 @@ import pygame
 import pygame_menu
 
 # Configure logging
+from treehero.song import Song, load_chart, TreeChart, get_all_songs
+
 log_formatter = logging.Formatter(fmt="%(asctime)s - %(name)s - [%(levelname)s]: %(message)s",
                                   datefmt='%Y/%m/%d %H:%M:%S')
 root_logger = logging.getLogger()
@@ -51,9 +51,6 @@ score_font: Optional['Font'] = None
 
 main_menu: Optional['pygame_menu.Menu'] = None
 surface: Optional['pygame_menu.Menu'] = None
-
-Song = namedtuple('Song', 'folder artist name chart has_music')
-
 
 def generate_note_id():
     """Generates the id for th next note."""
@@ -104,21 +101,6 @@ def to_ticks(current_time_ms, sync_track, ticks_per_beat) -> float:
     return current_time_min * tpm
 
 
-def load_chart(song_folder: str) -> Chart:
-    """Loads the chart file found in the given song folder. If none is found, the system exits."""
-    chart_file = os.path.join('treehero', 'songs', song_folder, 'notes.chart')
-
-    assert os.path.exists(chart_file), f"Chart file not found: {chart_file}"
-
-    # TODO(chart-bug): Get rid of this clearing of state once charts are independent
-    [v.clear() for v in Chart.instruments.values()]
-    with open(chart_file, mode='r', encoding='utf-8-sig') as chartfile:
-        chart = chparse.load(chartfile)
-
-    # TODO(chart-bug): Chart is broken. Need to copy this chart to our own object.
-    return chart
-
-
 def load_music(song_folder: str) -> None:
     """
     Loads exactly one .mp3 or .ogg in the song_folder into pygame.mixer.music. If no music file is found, the system
@@ -142,18 +124,18 @@ def play_song(screen: Surface, song: Song, difficulty=chparse.EXPERT):
     clock = pygame.time.Clock()
     dt = 0
 
-    chart = song.chart
+    chart: TreeChart = song.tree_chart
     load_music(song.folder)
 
     # added this comparison because for some reason it was finding Event objects inside of the Guitar Note section
-    first_note = chart.instruments[difficulty][chparse.GUITAR][0]
-    note_list = [note for note in chart.instruments[difficulty][chparse.GUITAR] if
+    first_note = chart.get_difficulty(difficulty)[0]
+    note_list = [note for note in chart.get_difficulty(difficulty) if
                  type(note) == type(first_note) and note.fret <= 4]
-    logger.info(f"Loaded {len(note_list)} notes from {chart.Name}")
+    logger.info(f"Loaded {len(note_list)} notes from {chart.name}")
     logger.info(f"first note: {first_note}")
 
-    chart_offset_ms = float(chart.Offset) * 1000
-    resolution = chart.Resolution
+    chart_offset_ms = float(chart.offset) * 1000
+    resolution = chart.resolution
 
     # Show one frame of notes
     lead_time_ticks = resolution * 4 * 10 / note_speed
@@ -167,7 +149,7 @@ def play_song(screen: Surface, song: Song, difficulty=chparse.EXPERT):
         # Subtract the offset from the play time. Usually, we would start the playback at the offset position
         # but not all codecs support this. Instead, play the whole song and remove the offset from the position.
         current_time_ms = pygame.mixer.music.get_pos() - chart_offset_ms
-        current_ticks = to_ticks(current_time_ms, chart.sync_track, resolution)
+        current_ticks = to_ticks(current_time_ms, chart.sync_data, resolution)
 
         logger.debug(f"crr: {current_ticks}")
         # Load in the notes that should be visible
@@ -226,27 +208,6 @@ def start_the_game(song, difficulty):
     play_song(surface, song, difficulty)
 
 
-def get_all_songs():
-    """Returns all the folders and metadata for songs."""
-    root_song_dir = os.path.join('treehero', 'songs', '')
-    song_folders = [p.removeprefix(root_song_dir) for p in glob.glob(f"{root_song_dir}*")]
-    songs = [make_song(song_folder) for song_folder in song_folders]
-
-    return songs
-
-
-def make_song(folder: str) -> Song:
-    """Creates the song object. Used for song select on the menu."""
-    chart = load_chart(folder)
-    artist = chart.Artist if chart else folder
-    name = chart.Name if chart else '-'
-
-    has_music = bool(list(itertools.chain.from_iterable(
-        [glob.glob(os.path.join('treehero', 'songs', folder, t)) for t in ('*.ogg', '*.mp3')])))
-
-    return Song(folder, artist, name, chart, has_music)
-
-
 def difficulty_select(song: Song):
     copied_theme = menu_theme.copy()
     copied_theme.widget_font_size = 20
@@ -257,15 +218,12 @@ def difficulty_select(song: Song):
         theme=copied_theme
     )
 
-    # TODO(chart-bug): Force the instruments to reload. Remove this once chart is fixed.
-    load_chart(song.folder)
-
-    difficulties = [k for k, v in song.chart.instruments.items() if not k == chparse.NA and len(v) > 0]
+    difficulties = song.tree_chart.get_difficulties()
     difficulties.sort(key=[chparse.EASY, chparse.MEDIUM, chparse.HARD, chparse.EXPERT].index)
 
     for difficulty in difficulties:
         difficulty_select_menu.add.button(
-            f"{difficulty.name} - {len(song.chart.instruments[difficulty][chparse.GUITAR])}", start_the_game, song,
+            f"{difficulty.name}", start_the_game, song,
             difficulty)
 
     difficulty_select_menu.add.button('Back', pygame_menu.events.BACK, font_color="gray37")
@@ -285,9 +243,8 @@ def song_select_submenu():
     installed_songs = get_all_songs()
 
     for song in installed_songs:
-        if song.chart:
+        if song.tree_chart:
             song_select_menu.add.button(f"{song.artist} - {song.name}", difficulty_select(song))
-            logger.info(f"{song.name} - {len(song.chart.instruments[chparse.EXPERT][chparse.GUITAR])}")
         else:
             song_select_menu.add.button(f'Error parsing chart: \'{song.folder}\'', action=None,
                                         selection_color='firebrick1', font_color='firebrick3')
