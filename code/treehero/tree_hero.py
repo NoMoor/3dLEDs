@@ -110,8 +110,9 @@ def load_chart(song_folder: str) -> Chart:
 
     assert os.path.exists(chart_file), f"Chart file not found: {chart_file}"
 
-    with open(chart_file) as chartfile:
+    with open(chart_file, mode='r', encoding='utf-8-sig') as chartfile:
         chart = chparse.load(chartfile)
+
     logger.debug(chart.instruments[chparse.EXPERT][chparse.GUITAR])
 
     return chart
@@ -140,7 +141,7 @@ def play_song(screen: Surface):
     clock = pygame.time.Clock()
     dt = 0
 
-    chart = load_song("Rage Against the Machine - Killing in the Name")
+    chart = load_song("Rage Against the Machine - Calm Like a Bomb")
 
     # added this comparison because for some reason it was finding Event objects inside of the Guitar Note section
     first_note = chart.instruments[chparse.EXPERT][chparse.GUITAR][0]
