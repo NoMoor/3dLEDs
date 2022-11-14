@@ -118,7 +118,7 @@ def load_chart(song_folder: str) -> Chart:
     with open(chart_file, mode='r', encoding='utf-8-sig') as chartfile:
         chart = chparse.load(chartfile)
 
-    logger.debug(chart.instruments[chparse.EXPERT][chparse.GUITAR])
+    # logger.debug(chart.instruments[chparse.EXPERT][chparse.GUITAR])
 
     return chart
 
@@ -224,21 +224,23 @@ def start_the_game(song):
     play_song(surface, song.folder)
 
 
-Song = namedtuple('Song', 'folder chart difficulties has_music')
+Song = namedtuple('Song', 'folder artist name chart difficulties has_music')
 
 def get_all_songs():
     root_song_dir = os.path.join('treehero', 'songs', '')
     song_folders = [p.removeprefix(root_song_dir) for p in glob.glob(f"{root_song_dir}*")]
 
     songs = list(map(make_song, song_folders))
-    songs.sort(key=lambda s: (s.chart.Artist, s.chart.Name))
+    songs.sort(key=lambda s: (s.artist, s.name))
 
     return songs
 
 def make_song(folder: str) -> Song:
     chart = load_chart(folder)
+    artist = chart.Artist if chart else folder
+    name = chart.Name if chart else '-'
     difficulties = ''
-    return Song(folder, chart, difficulties, True)
+    return Song(folder, artist, name, chart, difficulties, True)
 
 def song_select_submenu():
     copied_theme = menu_theme.copy()
@@ -253,7 +255,10 @@ def song_select_submenu():
     installed_songs = get_all_songs()
 
     for song in installed_songs:
-        song_select_menu.add.button(f"{song.chart.Artist} - {song.chart.Name}", start_the_game, song)
+        if song.chart:
+            song_select_menu.add.button(f"{song.artist} - {song.name}", start_the_game, song)
+        else:
+            song_select_menu.add.button(f'Error parsing chart: \'{song.folder}\'', action=None, selection_color='firebrick1', font_color='firebrick3')
 
     song_select_menu.add.button('Return to main menu', pygame_menu.events.BACK, font_color="gray37")
     return song_select_menu
