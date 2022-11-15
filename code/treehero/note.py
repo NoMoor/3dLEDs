@@ -28,16 +28,35 @@ class Note(pygame.sprite.Sprite):
         self.was_hit = False
         self.scored = False
 
+        self.last_strum_direction = None
+
+    def is_valid_strum(self, keys):
+        print("Strum keys: up: " + str(keys[self.lane.settings.strum_keys[0]]) + " down: " + str(keys[self.lane.settings.strum_keys[1]]))
+        return keys[self.lane.settings.strum_keys[0]] or keys[self.lane.settings.strum_keys[1]]
+
+        # code that was for alternating strum directions, but doesn't take into account 2 simultaneous notes
+        # are technically 2 different notes. maybe switch to chords somehow? or factor in the tick time as the last note
+        # if not strum_direction:
+        #     strum_direction = keys[self.lane.settings.strum_keys[1]]
+        # if not strum_direction:
+        #     return False
+        # if self.last_strum_direction != strum_direction:
+        #     self.last_strum_direction = strum_direction
+        #     return True
+        # else:
+        #     return False
+
     def update(self, keys, events, current_time, dt):
         # Note goes off-screen.
         if self.rect.y > lane_end_y:
             self.kill()
+        # Note is hit in a spot where it is hittable
+        elif self.was_hit:
+            self.lane.state.note_hit()
+            self.kill()
         # Note goes past the spot where it is hittable.
         elif self.rect.y > note_hit_box_max:
-            if self.was_hit:
-                self.lane.state.note_hit()
-                self.kill()
-            elif not self.scored:
+            if not self.scored:
                 self.color = pygame.Color(note_miss_color)
                 self.lane.state.note_miss()
                 logger.info(f"Miss note - i:%s y:%s", self.note_id, self.rect.y)
@@ -45,17 +64,19 @@ class Note(pygame.sprite.Sprite):
         # If the note can be hit and is in the sweet spot and the key is pressed, mark it as hit.
         elif self.hittable and \
                 note_hit_box_min < self.rect.y < note_hit_box_max and \
-                keys[self.lane.settings.keys[self.lane.lane_id]]:
+                keys[self.lane.settings.keys[self.lane.lane_id]] and \
+                self.is_valid_strum(keys):
             if not self.was_hit:
                 logger.info(f"Hitt note - i:{self.note_id} y:{self.rect.y}")
                 self.color = pygame.Color(note_hit_color)
                 self.was_hit = True
+
         else:
             self.color = pygame.Color(notes_colors[self.lane.lane_id])
 
-            # Indicate that this note is hittable so long as we aren't holding the key when we go into the zone.
-            if note_hit_box_min > self.rect.y:
-                self.hittable = not keys[self.lane.settings.keys[self.lane.lane_id]]
+            # # Indicate that this note is hittable so long as we aren't holding the key when we go into the zone.
+            # if note_hit_box_min > self.rect.y:
+            #     self.hittable = not keys[self.lane.settings.keys[self.lane.lane_id]]
 
         # Check how long it is between now and when we should be getting to the bottom
         # Based on that time and the speed, set the height.

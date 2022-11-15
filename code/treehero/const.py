@@ -6,7 +6,7 @@ game_title = "Tree Hero"
 
 lane_count = 5
 note_width = 32
-note_height = 8
+note_height = 2
 string_width = 3
 lane_width = note_width
 lane_height = 500
@@ -62,6 +62,7 @@ class Settings:
 
     def __init__(self):
         self.keys = [pygame.K_a, pygame.K_s, pygame.K_d, pygame.K_f, pygame.K_g]
+        self.strum_keys = [pygame.K_UP, pygame.K_DOWN]
 
 
 class State:
