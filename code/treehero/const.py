@@ -42,12 +42,14 @@ score_color = "beige"
 lane_start_y = header_height
 lane_end_y = lane_start_y + lane_height
 note_target_y = lane_end_y - lane_target_to_end
-note_hit_box_height = 30
+note_hit_box_height = 15
 note_hit_box_min = note_target_y - note_hit_box_height
 note_hit_box_max = note_target_y + note_hit_box_height
 
 # Visual box drawn on the screen to indicate where to hit notes.
 hitbox_visual = pygame.Rect(frame_padding, note_hit_box_min, highway_width, note_hit_box_height * 2)
+
+# minimum delay between allowing consecutive strum directions to
 
 def lane_x(lane_id):
     return frame_padding + lane_outside_padding + (note_width + lane_internal_padding) * lane_id

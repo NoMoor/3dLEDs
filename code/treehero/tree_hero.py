@@ -7,7 +7,6 @@ from logging.handlers import RotatingFileHandler
 
 import logging
 from typing import Optional
-
 import chparse
 from chparse import BPM
 from pygame import Surface

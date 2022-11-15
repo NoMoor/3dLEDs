@@ -1,4 +1,5 @@
 import logging
+from enum import Enum
 
 import pygame
 
@@ -27,27 +28,33 @@ class Note(pygame.sprite.Sprite):
         self.rect.move_ip((lane_x(self.lane_id), lane_start_y))
 
         self.image.fill(self.color)
-        self.hittable = True
         self.was_hit = False
         self.scored = False
 
-        self.last_strum_direction = None
 
-    def is_valid_strum(self, keys):
-        print("Strum keys: up: " + str(keys[self.settings.strum_keys[0]]) + " down: " + str(keys[self.settings.strum_keys[1]]))
-        return keys[self.settings.strum_keys[0]] or keys[self.settings.strum_keys[1]]
 
-        # code that was for alternating strum directions, but doesn't take into account 2 simultaneous notes
-        # are technically 2 different notes. maybe switch to chords somehow? or factor in the tick time as the last note
-        # if not strum_direction:
-        #     strum_direction = keys[self.lane.settings.strum_keys[1]]
-        # if not strum_direction:
-        #     return False
-        # if self.last_strum_direction != strum_direction:
-        #     self.last_strum_direction = strum_direction
-        #     return True
-        # else:
-        #     return False
+    def is_valid_strum(self, keys, current_time, last_strum):
+        logger.info("Strum keys: up: " + str(keys[self.settings.strum_keys[0]]) + " down: " + str(
+            keys[self.settings.strum_keys[1]]))
+        if keys[self.settings.strum_keys[0]] and keys[self.settings.strum_keys[1]]:
+            self.last_strum_direction = Strum.BOTH
+            return False
+        elif keys[self.settings.strum_keys[0]]:
+            current_strum = Strum.UP
+        elif keys[self.settings.strum_keys[1]]:
+            current_strum = Strum.DOWN
+        else:
+            self.last_strum_direction = Strum.NONE
+            return False
+        logger.info(f"current strum: {current_strum} last strum: {self.last_strum_direction}")
+        if current_strum != self.last_strum_direction:
+            self.last_strum_direction = current_strum
+            return True
+        else:
+            return False
+
+        # is needed if notes are not chords
+        # return keys[self.lane.settings.strum_keys[0]] or keys[self.lane.settings.strum_keys[1]]
 
     def update(self, keys, events, current_time, dt):
         # Note goes off-screen.
@@ -66,10 +73,9 @@ class Note(pygame.sprite.Sprite):
                 logger.info(f"Miss note - i:%s y:%s", self.note_id, self.rect.y)
             self.scored = True
         # If the note can be hit and is in the sweet spot and the key is pressed, mark it as hit.
-        elif self.hittable and \
-                note_hit_box_min < self.rect.y < note_hit_box_max and \
+        elif note_hit_box_min < self.rect.y < note_hit_box_max and \
                 keys[self.settings.keys[self.lane_id]] and \
-                self.is_valid_strum(keys):
+                self.is_valid_strum(keys, current_time):
             if not self.was_hit:
                 logger.info(f"Hitt note - i:{self.note_id} y:{self.rect.y}")
                 self.color = pygame.Color(note_hit_color)
@@ -77,10 +83,6 @@ class Note(pygame.sprite.Sprite):
 
         else:
             self.color = pygame.Color(notes_colors[self.lane_id])
-
-            # # Indicate that this note is hittable so long as we aren't holding the key when we go into the zone.
-            # if note_hit_box_min > self.rect.y:
-            #     self.hittable = not keys[self.lane.settings.keys[self.lane.lane_id]]
 
         # Check how long it is between now and when we should be getting to the bottom
         # Based on that time and the speed, set the height.
@@ -91,3 +93,10 @@ class Note(pygame.sprite.Sprite):
 
         self.rect.y = note_target_y - int(time_to_target * pix_per_ms)
         self.image.fill(self.color)
+
+
+class Strum(Enum):
+    UP = 'up'
+    DOWN = 'down'
+    NONE = None
+    BOTH = 'both'
