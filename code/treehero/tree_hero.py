@@ -14,7 +14,7 @@ from pygame import Surface
 from pygame.font import Font
 
 from const import *
-from lane import Lane
+from highway import Highway
 
 import pygame
 import pygame_menu
@@ -118,8 +118,8 @@ def play_song(screen: Surface, song: Song, difficulty=chparse.EXPERT):
     pygame.display.set_caption(f"{game_title} - v{version}")
     settings = Settings()
     state = State()
-    lanes = [Lane(i, settings, state) for i in range(lane_count)]
-    [lane.setup() for lane in lanes]
+    highway = Highway(settings, state)
+    highway.setup()
 
     clock = pygame.time.Clock()
     dt = 0
@@ -153,8 +153,8 @@ def play_song(screen: Surface, song: Song, difficulty=chparse.EXPERT):
         # Load in the notes that should be visible
         while note_list and note_list[0].time < current_ticks + lead_time_ticks:
             note = note_list.pop(0)
-            lanes[note.fret].add_note(note_id=generate_note_id(), note_ticks=note.time)
-            logger.debug("Spawn tk:[%s] ln[%s]", int(current_ticks), note.fret)
+            highway.add_note(lane_id=note.fret, note_id=generate_note_id(), note_ticks=note.time)
+            logger.info("Spawn tk:[%s] ln[%s]", int(current_ticks), note.fret)
 
         # Figure out which buttons are being pressed
         events = pygame.event.get()
@@ -175,7 +175,7 @@ def play_song(screen: Surface, song: Song, difficulty=chparse.EXPERT):
 
         if not paused:
             # Update physics of the lanes
-            [lane.update(keys, events, current_ticks, dt) for lane in lanes]
+            highway.update(keys, events, current_ticks, dt)
 
             # Redraw the screen
             screen.fill((30, 30, 30))
@@ -185,7 +185,7 @@ def play_song(screen: Surface, song: Song, difficulty=chparse.EXPERT):
                 pygame.draw.rect(screen, (50, 100, 50), hitbox_visual)
 
             render_header(screen, state)
-            [lane.draw(screen) for lane in lanes]
+            highway.draw(screen)
             pygame.display.update()
 
         # Do frame maintenance

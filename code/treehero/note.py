@@ -3,7 +3,8 @@ import logging
 import pygame
 
 from const import note_width, note_height, notes_colors, lane_x, note_speed_per_ms, note_hit_box_max, note_miss_color, \
-    note_hit_box_min, note_hit_color, lane_start_y, lane_end_y, note_speed, lane_start_to_target, note_target_y
+    note_hit_box_min, note_hit_color, lane_start_y, lane_end_y, note_speed, lane_start_to_target, note_target_y, \
+    Settings, State
 
 logger = logging.getLogger(__name__)
 
@@ -11,17 +12,19 @@ logger = logging.getLogger(__name__)
 class Note(pygame.sprite.Sprite):
     """Sprite class for a note."""
 
-    def __init__(self, note_id, note_ticks, lane, *args):
-        super().__init__(lane, *args)
-        self.lane = lane
+    def __init__(self, note_id: int, note_ticks: int, lane_id: int, settings: Settings, state: State, *args):
+        super().__init__(*args)
+        self.state = state
+        self.settings = settings
+        self.lane_id = lane_id
         self.note_id = note_id
         self.ticks = note_ticks
         self.image = pygame.Surface((note_width, note_height))
         self.rect = pygame.display.get_surface().get_rect()
-        self.color = pygame.Color(notes_colors[self.lane.lane_id])
+        self.color = pygame.Color(notes_colors[self.lane_id])
 
         # Calculate the offset of the lane to get this in the right column.
-        self.rect.move_ip((lane_x(self.lane.lane_id), lane_start_y))
+        self.rect.move_ip((lane_x(self.lane_id), lane_start_y))
 
         self.image.fill(self.color)
         self.hittable = True
@@ -31,8 +34,8 @@ class Note(pygame.sprite.Sprite):
         self.last_strum_direction = None
 
     def is_valid_strum(self, keys):
-        print("Strum keys: up: " + str(keys[self.lane.settings.strum_keys[0]]) + " down: " + str(keys[self.lane.settings.strum_keys[1]]))
-        return keys[self.lane.settings.strum_keys[0]] or keys[self.lane.settings.strum_keys[1]]
+        print("Strum keys: up: " + str(keys[self.settings.strum_keys[0]]) + " down: " + str(keys[self.settings.strum_keys[1]]))
+        return keys[self.settings.strum_keys[0]] or keys[self.settings.strum_keys[1]]
 
         # code that was for alternating strum directions, but doesn't take into account 2 simultaneous notes
         # are technically 2 different notes. maybe switch to chords somehow? or factor in the tick time as the last note
@@ -52,19 +55,20 @@ class Note(pygame.sprite.Sprite):
             self.kill()
         # Note is hit in a spot where it is hittable
         elif self.was_hit:
-            self.lane.state.note_hit()
+            # TODO: Emit event instead of updating the state directly.
+            self.state.note_hit()
             self.kill()
         # Note goes past the spot where it is hittable.
         elif self.rect.y > note_hit_box_max:
             if not self.scored:
                 self.color = pygame.Color(note_miss_color)
-                self.lane.state.note_miss()
+                self.state.note_miss()
                 logger.info(f"Miss note - i:%s y:%s", self.note_id, self.rect.y)
             self.scored = True
         # If the note can be hit and is in the sweet spot and the key is pressed, mark it as hit.
         elif self.hittable and \
                 note_hit_box_min < self.rect.y < note_hit_box_max and \
-                keys[self.lane.settings.keys[self.lane.lane_id]] and \
+                keys[self.settings.keys[self.lane_id]] and \
                 self.is_valid_strum(keys):
             if not self.was_hit:
                 logger.info(f"Hitt note - i:{self.note_id} y:{self.rect.y}")
@@ -72,7 +76,7 @@ class Note(pygame.sprite.Sprite):
                 self.was_hit = True
 
         else:
-            self.color = pygame.Color(notes_colors[self.lane.lane_id])
+            self.color = pygame.Color(notes_colors[self.lane_id])
 
             # # Indicate that this note is hittable so long as we aren't holding the key when we go into the zone.
             # if note_hit_box_min > self.rect.y:
