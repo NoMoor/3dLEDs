@@ -1,26 +1,27 @@
+from __future__ import annotations
+
 import pygame
 
-from const import note_width, note_height, notes_colors, lane_outside_padding, lane_internal_padding, \
-    note_hit_box_min, note_target_y, lane_x, string_width, lane_height, lane_start_y, lane_count
+from const import note_width, note_height, notes_colors, note_target_y, lane_x, string_width, lane_height, lane_start_y, \
+    lane_count
 from note import Note
 
 
 class Highway(pygame.sprite.Group):
     """Class representing an individual vertical lane."""
 
-    def __init__(self, settings, state, *args):
+    def __init__(self, *args):
         super().__init__(*args)
-        self.state = state
-        self.settings = settings
         self.notes = []
 
     def add_note(self, lane_id, note_id, note_ticks):
-        new_note = Note(note_id, note_ticks, lane_id, self.settings, self.state, self)
+        new_note = Note(note_id, note_ticks, lane_id, self)
         self.notes.append(new_note)
 
-    def setup(self):
+    def setup(self) -> Highway:
         [LaneCenter(i, self) for i in range(lane_count)]
         [NoteTarget(i, self) for i in range(lane_count)]
+        return self
 
 
 TRANSPARENT = (0, 0, 0, 0)

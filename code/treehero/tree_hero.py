@@ -19,7 +19,7 @@ import pygame
 import pygame_menu
 
 # Configure logging
-from treehero.song import Song, load_chart, TreeChart, get_all_songs
+from treehero.song import Song, get_all_songs
 
 log_formatter = logging.Formatter(fmt="%(asctime)s - %(name)s - [%(levelname)s]: %(message)s",
                                   datefmt='%Y/%m/%d %H:%M:%S')
@@ -58,18 +58,18 @@ def generate_note_id():
     return next_note_id
 
 
-def render_header(screen, state):
+def render_header(screen):
     """Renders the header containing the title and the score information."""
     title_surface = title_font.render(game_title, False, title_color)
     title_rect = title_surface.get_rect()
     screen.blit(title_surface, ((frame_width - title_rect.width) // 2, (header_height // 4 - title_rect.height // 2)))
 
-    streak_surface = score_font.render(f'Streak: {state.current_streak}', False, score_color)
+    streak_surface = score_font.render(f'Streak: {STATE.current_streak}', False, score_color)
     streak_rect = streak_surface.get_rect()
     screen.blit(streak_surface,
                 (frame_width // 4 - streak_rect.width // 2, (header_height * 3 // 4 - streak_rect.height // 2)))
 
-    score_surface = score_font.render(f'Score: {state.net_score}', False, score_color)
+    score_surface = score_font.render(f'Score: {STATE.net_score}', False, score_color)
     score_rect = score_surface.get_rect()
     screen.blit(score_surface,
                 ((frame_width * 3 // 4) - score_rect.width // 2, (header_height * 3 // 4 - score_rect.height // 2)))
@@ -115,10 +115,7 @@ def load_music(song_folder: str) -> None:
 
 def play_song(screen: Surface, song: Song, difficulty=chparse.EXPERT):
     pygame.display.set_caption(f"{game_title} - v{version}")
-    settings = Settings()
-    state = State()
-    highway = Highway(settings, state)
-    highway.setup()
+    highway = Highway().setup()
 
     clock = pygame.time.Clock()
     dt = 0
@@ -183,7 +180,7 @@ def play_song(screen: Surface, song: Song, difficulty=chparse.EXPERT):
                 # Draw the hit box
                 pygame.draw.rect(screen, (50, 100, 50), hitbox_visual)
 
-            render_header(screen, state)
+            render_header(screen)
             highway.draw(screen)
             pygame.display.update()
 

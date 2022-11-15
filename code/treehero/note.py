@@ -3,9 +3,9 @@ from enum import Enum
 
 import pygame
 
-from const import note_width, note_height, notes_colors, lane_x, note_speed_per_ms, note_hit_box_max, note_miss_color, \
+from const import note_width, note_height, notes_colors, lane_x, note_hit_box_max, note_miss_color, \
     note_hit_box_min, note_hit_color, lane_start_y, lane_end_y, note_speed, lane_start_to_target, note_target_y, \
-    Settings, State
+    SETTINGS, STATE
 
 logger = logging.getLogger(__name__)
 
@@ -13,10 +13,8 @@ logger = logging.getLogger(__name__)
 class Note(pygame.sprite.Sprite):
     """Sprite class for a note."""
 
-    def __init__(self, note_id: int, note_ticks: int, lane_id: int, settings: Settings, state: State, *args):
+    def __init__(self, note_id: int, note_ticks: int, lane_id: int, *args):
         super().__init__(*args)
-        self.state = state
-        self.settings = settings
         self.lane_id = lane_id
         self.note_id = note_id
         self.ticks = note_ticks
@@ -30,18 +28,18 @@ class Note(pygame.sprite.Sprite):
         self.image.fill(self.color)
         self.was_hit = False
         self.scored = False
+        self.last_strum_direction = Strum.NONE
 
 
-
-    def is_valid_strum(self, keys, current_time, last_strum):
-        logger.info("Strum keys: up: " + str(keys[self.settings.strum_keys[0]]) + " down: " + str(
-            keys[self.settings.strum_keys[1]]))
-        if keys[self.settings.strum_keys[0]] and keys[self.settings.strum_keys[1]]:
+    def is_valid_strum(self, keys):
+        logger.info("Strum keys: up: " + str(keys[SETTINGS.strum_keys[0]]) + " down: " + str(
+            keys[SETTINGS.strum_keys[1]]))
+        if keys[SETTINGS.strum_keys[0]] and keys[SETTINGS.strum_keys[1]]:
             self.last_strum_direction = Strum.BOTH
             return False
-        elif keys[self.settings.strum_keys[0]]:
+        elif keys[SETTINGS.strum_keys[0]]:
             current_strum = Strum.UP
-        elif keys[self.settings.strum_keys[1]]:
+        elif keys[SETTINGS.strum_keys[1]]:
             current_strum = Strum.DOWN
         else:
             self.last_strum_direction = Strum.NONE
@@ -63,19 +61,18 @@ class Note(pygame.sprite.Sprite):
         # Note is hit in a spot where it is hittable
         elif self.was_hit:
             # TODO: Emit event instead of updating the state directly.
-            self.state.note_hit()
+            STATE.note_hit()
             self.kill()
         # Note goes past the spot where it is hittable.
         elif self.rect.y > note_hit_box_max:
             if not self.scored:
                 self.color = pygame.Color(note_miss_color)
-                self.state.note_miss()
+                STATE.note_miss()
                 logger.info(f"Miss note - i:%s y:%s", self.note_id, self.rect.y)
             self.scored = True
         # If the note can be hit and is in the sweet spot and the key is pressed, mark it as hit.
         elif note_hit_box_min < self.rect.y < note_hit_box_max and \
-                keys[self.settings.keys[self.lane_id]] and \
-                self.is_valid_strum(keys, current_time):
+                keys[SETTINGS.keys[self.lane_id]] and self.is_valid_strum(keys):
             if not self.was_hit:
                 logger.info(f"Hitt note - i:{self.note_id} y:{self.rect.y}")
                 self.color = pygame.Color(note_hit_color)

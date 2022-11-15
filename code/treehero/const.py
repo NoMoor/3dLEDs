@@ -49,8 +49,6 @@ note_hit_box_max = note_target_y + note_hit_box_height
 # Visual box drawn on the screen to indicate where to hit notes.
 hitbox_visual = pygame.Rect(frame_padding, note_hit_box_min, highway_width, note_hit_box_height * 2)
 
-# minimum delay between allowing consecutive strum directions to
-
 def lane_x(lane_id):
     return frame_padding + lane_outside_padding + (note_width + lane_internal_padding) * lane_id
 
@@ -69,6 +67,7 @@ class Settings:
 
 class State:
     """Container to store things like game score, streak, lives, etc."""
+
     def __init__(self):
         self.current_streak = 0
         self.net_score = 0
@@ -80,3 +79,7 @@ class State:
     def note_miss(self):
         self.current_streak = 0
         self.net_score = self.net_score - 1
+
+
+SETTINGS = Settings()
+STATE = State()
