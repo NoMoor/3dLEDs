@@ -6,10 +6,10 @@ game_title = "Tree Hero"
 
 lane_count = 5
 note_width = 32
-note_height = 2
+note_height = 5
 string_width = 3
 lane_width = note_width
-lane_height = 500
+lane_height = 800
 lane_target_to_end = 100
 lane_start_to_target = lane_height - lane_target_to_end
 
@@ -23,11 +23,11 @@ note_speed_per_ms = 1 / 5
 
 # Inverse note speed in [1 - 20] where 10 takes 1 second to go down the lane
 # User editable
-note_speed = 5
+note_speed = 10
 
 highway_width = (lane_outside_padding * 2) + (note_width * lane_count) + (lane_internal_padding * (lane_count - 1))
 
-fps = 60
+fps = 100
 spawn_interval = 30
 frame_height = lane_height + header_height
 frame_padding = 150
@@ -37,6 +37,7 @@ note_miss_color = "orangered"
 note_hit_color = "chartreuse2"
 title_color = (20, 150, 20)
 score_color = "beige"
+fps_color = "yellow"
 
 # Vertical locations on the screen where we will consider a note 'hittable'
 lane_start_y = header_height

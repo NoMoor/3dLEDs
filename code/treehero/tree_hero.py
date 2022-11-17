@@ -1,25 +1,22 @@
 import argparse
 import glob
 import itertools
+import logging
 import os.path
 import sys
-
+import time
 from logging.handlers import RotatingFileHandler
-
-import logging
 from typing import Optional
+
 import chparse
-from chparse import BPM, Difficulties
+import pygame_menu
+from chparse import Difficulties
 from pygame import Surface
 from pygame.font import Font
 from pygame_menu import Menu
 
 from const import *
 from highway import Highway
-
-import pygame
-import pygame_menu
-
 # Configure logging
 from song import Song, get_all_songs, make_song
 
@@ -41,7 +38,7 @@ root_logger.addHandler(console_handler)
 logger = logging.getLogger(__name__)
 
 # Start code
-version = "0.3"
+version = "0.4"
 next_note_id = 0
 debug = True
 
@@ -122,6 +119,7 @@ def play_song(screen: Surface, song: Song, difficulty=chparse.EXPERT):
 
     pygame.mixer.music.play()
     frame_num = 0
+    tracker_start = time.perf_counter()
 
     paused = False
 
@@ -131,12 +129,11 @@ def play_song(screen: Surface, song: Song, difficulty=chparse.EXPERT):
         current_time_ms = pygame.mixer.music.get_pos() - chart_offset_ms
         current_ticks = chart.to_ticks(current_time_ms)
 
-        logger.debug(f"crr: {current_ticks}")
         # Load in the notes that should be visible
         while note_list and note_list[0].time < current_ticks + lead_time_ticks:
             note = note_list.pop(0)
             highway.add_note(lane_id=note.fret, note_id=generate_note_id(), note_ticks=note.time)
-            logger.info("Spawn tk:[%s] ln[%s]", int(current_ticks), note.fret)
+            logger.debug("Spawn tk:[%s] ln[%s]", int(current_ticks), note.fret)
 
         # Figure out which buttons are being pressed
         events = pygame.event.get()
@@ -162,10 +159,19 @@ def play_song(screen: Surface, song: Song, difficulty=chparse.EXPERT):
             # Redraw the screen
             screen.fill((30, 30, 30))
 
+            # Render debug info
             if debug:
                 # Draw the hit box
                 pygame.draw.rect(screen, (50, 100, 50), hitbox_visual)
 
+                # Render FPS
+                fps_surface = score_font.render(f'FPS: {frame_num / (time.perf_counter() - tracker_start):05.1f}', False, fps_color)
+                screen.blit(fps_surface, (frame_width - 110, 0))
+                if not frame_num % 60:
+                    tracker_start = time.perf_counter()
+                    frame_num = 0
+
+            # Render game components
             render_header(screen)
             highway.draw(screen)
             pygame.display.update()

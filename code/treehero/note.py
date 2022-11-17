@@ -30,10 +30,8 @@ class Note(pygame.sprite.Sprite):
         self.scored = False
         self.last_strum_direction = Strum.NONE
 
-
     def is_valid_strum(self, keys):
-        logger.info("Strum keys: up: " + str(keys[SETTINGS.strum_keys[0]]) + " down: " + str(
-            keys[SETTINGS.strum_keys[1]]))
+        logger.debug("Strum keys: up: %s down: %s", keys[SETTINGS.strum_keys[0]], keys[SETTINGS.strum_keys[1]])
         if keys[SETTINGS.strum_keys[0]] and keys[SETTINGS.strum_keys[1]]:
             self.last_strum_direction = Strum.BOTH
             return False
@@ -44,7 +42,7 @@ class Note(pygame.sprite.Sprite):
         else:
             self.last_strum_direction = Strum.NONE
             return False
-        logger.info(f"current strum: {current_strum} last strum: {self.last_strum_direction}")
+        logger.debug(f"current strum: %s last strum: %s", current_strum, self.last_strum_direction)
         if current_strum != self.last_strum_direction:
             self.last_strum_direction = current_strum
             return True
@@ -68,13 +66,13 @@ class Note(pygame.sprite.Sprite):
             if not self.scored:
                 self.color = pygame.Color(note_miss_color)
                 STATE.note_miss()
-                logger.info(f"Miss note - i:%s y:%s", self.note_id, self.rect.y)
+                logger.debug(f"Miss note - i:%s y:%s", self.note_id, self.rect.y)
             self.scored = True
         # If the note can be hit and is in the sweet spot and the key is pressed, mark it as hit.
         elif note_hit_box_min < self.rect.y < note_hit_box_max and \
                 keys[SETTINGS.keys[self.lane_id]] and self.is_valid_strum(keys):
             if not self.was_hit:
-                logger.info(f"Hitt note - i:{self.note_id} y:{self.rect.y}")
+                logger.debug(f"Hitt note - i:{self.note_id} y:{self.rect.y}")
                 self.color = pygame.Color(note_hit_color)
                 self.was_hit = True
 
