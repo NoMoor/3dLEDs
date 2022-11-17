@@ -1,32 +1,84 @@
 import glob
 import itertools
+import logging
 import os
+from collections import namedtuple
 
 import chparse
-from chparse import chart as parse_chart
+from chparse import chart as parse_chart, BPM
 from chparse.note import Note
+
+logger = logging.getLogger(__name__)
+
+SyncFrame = namedtuple('SyncFrame', 'time_ms time_ticks milli_bpm')
 
 
 class TreeChart:
     """Local copy of chparse chart which deep copies the lists."""
+
+    MS_PER_MIN = 60 * 1000
 
     def __init__(self, c: parse_chart.Chart):
         self.name = c.Name
         self.artist = c.Artist
         self.resolution = c.Resolution
         self.offset = c.Offset
-        self.sync_data = c.sync_track
         self.guitar = Guitar()
         self.guitar.expert = get_guitar(c, chparse.EXPERT)
         self.guitar.hard = get_guitar(c, chparse.HARD)
         self.guitar.medium = get_guitar(c, chparse.MEDIUM)
         self.guitar.easy = get_guitar(c, chparse.EASY)
+        self.sync_data = self.compute_sync_track(c.sync_track)
+        print(self.sync_data)
 
     def get_difficulties(self) -> list[chparse.Difficulties]:
         return self.guitar.get_difficulties()
 
     def get_difficulty(self, difficulty: chparse.Difficulties) -> list[Note]:
         return self.guitar.get_difficulty(difficulty)
+
+    def compute_sync_track(self, sync_track) -> list[SyncFrame]:
+        """Computes the sync track data to correlate ticks and ms for easier lookup later."""
+        sync_frames = []
+        logger.info(self.name)
+        for i in range(len(sync_track)):
+            curr = sync_track[i]
+            prev = sync_track[i - 1] if i - 1 > 0 else sync_track[i]
+
+            if curr.kind != BPM:
+                continue
+
+            delta_ticks = curr.time - prev.time
+            delta_ms = self.ticks_to_ms(ticks=delta_ticks, milli_bpm=prev.value)
+
+            prev_ms = sync_frames[-1].time_ms if sync_frames else 0
+            sync_frames.append(SyncFrame(prev_ms + delta_ms, curr.time, curr.value))
+
+        return sync_frames
+
+    def to_ticks(self, current_time_ms) -> float:
+        """
+        Takes in the current time (ms), the sync track, and the resolution of the song and returns the current_ms as a
+        value of ticks.
+        """
+        f = self.sync_data[0]
+        for frame in self.sync_data:
+            if frame.time_ms > current_time_ms:
+                break
+            f = frame
+
+        return f.time_ticks + self.ms_to_ticks(current_time_ms - f.time_ms, f.milli_bpm)
+
+    def ms_to_ticks(self, ms, milli_bpm) -> float:
+        """Converts from a given millisecond value to ticks."""
+        tpm = milli_bpm * self.resolution / 1000
+        return tpm * ms / TreeChart.MS_PER_MIN
+
+    def ticks_to_ms(self, ticks, milli_bpm) -> float:
+        """Converts from ticks to the corresponding ms value."""
+        tpm = milli_bpm * self.resolution / 1000
+
+        return ticks / tpm * TreeChart.MS_PER_MIN
 
 
 class Song:

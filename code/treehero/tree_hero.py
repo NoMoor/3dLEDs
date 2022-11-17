@@ -86,22 +86,6 @@ def initialize_fonts():
     score_font = pygame.font.SysFont('Comic Sans MS', 30)
 
 
-def to_ticks(current_time_ms, sync_track, ticks_per_beat) -> float:
-    """
-    Takes in the current time (ms), the sync track, and the resolution of the song and returns the current_ms as a
-    value of ticks.
-    """
-    ms_per_minute = 60 * 1000
-    current_time_min = current_time_ms / ms_per_minute
-
-    # TODO: Adjust the BPM throughout the song. This assumes only one BPM.
-    first_sync_marker = next(x for x in sync_track if x.kind == BPM)
-    bpm = first_sync_marker.value / 1000
-
-    tpm = ticks_per_beat * bpm
-    return current_time_min * tpm
-
-
 def load_music(song_folder: str) -> None:
     """
     Loads exactly one .mp3 or .ogg in the song_folder into pygame.mixer.music. If no music file is found, the system
@@ -145,7 +129,7 @@ def play_song(screen: Surface, song: Song, difficulty=chparse.EXPERT):
         # Subtract the offset from the play time. Usually, we would start the playback at the offset position
         # but not all codecs support this. Instead, play the whole song and remove the offset from the position.
         current_time_ms = pygame.mixer.music.get_pos() - chart_offset_ms
-        current_ticks = to_ticks(current_time_ms, chart.sync_data, resolution)
+        current_ticks = chart.to_ticks(current_time_ms)
 
         logger.debug(f"crr: {current_ticks}")
         # Load in the notes that should be visible
