@@ -1,3 +1,4 @@
+import argparse
 import glob
 import itertools
 import os.path
@@ -8,9 +9,10 @@ from logging.handlers import RotatingFileHandler
 import logging
 from typing import Optional
 import chparse
-from chparse import BPM
+from chparse import BPM, Difficulties
 from pygame import Surface
 from pygame.font import Font
+from pygame_menu import Menu
 
 from const import *
 from highway import Highway
@@ -19,7 +21,7 @@ import pygame
 import pygame_menu
 
 # Configure logging
-from treehero.song import Song, get_all_songs
+from song import Song, get_all_songs, make_song
 
 log_formatter = logging.Formatter(fmt="%(asctime)s - %(name)s - [%(levelname)s]: %(message)s",
                                   datefmt='%Y/%m/%d %H:%M:%S')
@@ -244,17 +246,24 @@ def song_select_submenu():
     return song_select_menu
 
 
-def launch_menu():
+def initialize_menu() -> Menu:
     """Shows the menu for the game."""
     global menu
 
     menu = pygame_menu.Menu('Welcome', frame_width, frame_height, theme=menu_theme)
     menu.add.button('Play', song_select_submenu())
     menu.add.button('Quit', pygame_menu.events.EXIT)
-    menu.mainloop(surface)
+
+    return menu
 
 
 def main():
+
+    parser = argparse.ArgumentParser(prog='TreeHero', description='Timing based game to play locally and on lit christmas trees.')
+    parser.add_argument('-s', '--selected-song', type=str, help='The name of the song folder to play. Skips the menu.')
+    parser.add_argument('-d', '--difficulty', type=str, default="Expert", help='The difficulty to play')
+    args = parser.parse_args()
+
     pygame.init()
     initialize_fonts()
 
@@ -264,7 +273,18 @@ def main():
     global surface
 
     surface = pygame.display.set_mode((frame_width, frame_height))
-    launch_menu()
+
+    logger.info(f"Starting with {args}")
+
+    initialize_menu()
+
+    if args.selected_song:
+        # Jump straight to the specified song
+        song = make_song(args.selected_song)
+        difficulty = Difficulties(args.difficulty)
+        start_the_game(song, difficulty)
+    else:
+        menu.mainloop(surface)
 
 
 if __name__ == '__main__':
