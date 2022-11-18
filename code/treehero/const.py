@@ -33,6 +33,8 @@ note_speed_per_ms = 1 / 5
 # Inverse note speed in [1 - 20] where 10 takes 1 second to go down the lane
 # User editable
 note_speed = 10
+# The number of beats ahead to render on the highway
+highway_draw_distance = 2 * 4
 
 highway_width = (lane_outside_padding * 2) + (note_width * lane_count) + (lane_internal_padding * (lane_count - 1))
 

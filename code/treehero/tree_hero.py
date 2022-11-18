@@ -120,11 +120,10 @@ def play_song(screen: Surface, song: Song, difficulty=chparse.EXPERT):
     resolution = chart.resolution
 
     # Show one frame of notes
-    lead_time_ticks = resolution * 4 * 10 / note_speed
+    lead_time_ticks = resolution * highway_draw_distance * (10 / note_speed)
 
     pygame.mixer.music.play()
     frame_num = 0
-    fret_num = 0
     tracker_start = time.perf_counter()
 
     paused = False

@@ -5,7 +5,7 @@ import pygame
 
 from const import note_width, note_height, notes_colors, lane_x, note_miss_color, \
     note_hit_color, lane_start_y, lane_end_y, note_speed, lane_start_to_target, note_target_y, \
-    SETTINGS, NOTE_HIT_EVENT, NOTE_MISS_EVENT, hit_buffer
+    SETTINGS, NOTE_HIT_EVENT, NOTE_MISS_EVENT, hit_buffer, highway_draw_distance
 from treehero.song import Time
 
 logger = logging.getLogger(__name__)
@@ -82,11 +82,10 @@ class Note(pygame.sprite.Sprite):
         # Check how long it is between now and when we should be getting to the bottom
         # Based on that time and the speed, set the height.
         ticks_to_target = self.ticks - current_time.ticks
-        # TODO: Change this to be dependent on the resolution / bpm since ticks are different sizes
-        total_travel_time = 10_000 / note_speed
-        pix_per_ms = lane_start_to_target / total_travel_time
 
-        self.rect.y = note_target_y - int(ticks_to_target * pix_per_ms)
+        pix_per_tick = lane_start_to_target / (current_time.resolution * highway_draw_distance * 10 / note_speed)
+
+        self.rect.y = note_target_y - int(ticks_to_target * pix_per_tick)
         self.image.fill(self.color)
 
     def get_hit_window(self, current_time: Time) -> range:
