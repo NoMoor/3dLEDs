@@ -1,12 +1,11 @@
 import argparse
 import glob
 import itertools
-import logging
 import os.path
 import sys
 import time
 from logging.handlers import RotatingFileHandler
-from typing import Optional
+from typing import Optional, Callable
 
 import chparse
 import pygame_menu
@@ -190,7 +189,7 @@ def play_song(screen: Surface, song: Song, difficulty=chparse.EXPERT):
 def start_the_game(song, difficulty):
     """Launches the game itself."""
 
-    menu.disable()
+    main_menu.disable()
 
     logger.info(f"Launching {song.folder} at {difficulty}")
 
@@ -241,16 +240,81 @@ def song_select_submenu():
     song_select_menu.add.button('Return to main menu', pygame_menu.events.BACK, font_color="gray37")
     return song_select_menu
 
+def capture_keypress_menu(key_name: str, setter: Callable[[int], None]):
+    """Displays a menu to capture the button input."""
+    capture_menu = pygame_menu.menu.Menu(
+        "Capture",
+        400,
+        400,
+        theme=menu_theme
+    )
+
+    def capture_on_update(events, curr_menu):
+        for e in events:
+            if e.type == pygame.K_ESCAPE:
+                curr_menu.reset(1)
+            if e.type == pygame.KEYDOWN:
+                logger.info(e)
+                setter(e.key)
+                curr_menu.reset(1)
+
+    capture_menu.set_onupdate(capture_on_update)
+    capture_menu.add.label(f"Press a key to bind `{key_name}`")
+
+    return capture_menu
+
+
+def add_key_capture_button(parent_menu: Menu, key_name: str, getter: Callable[[], int], setter: Callable[[int], None]):
+    """
+    Convenience method for creating a button which captures a keyboard input and calls the setter to store the value.
+    """
+    capture_sub_menu = capture_keypress_menu(key_name, setter)
+    capture_button = parent_menu.add.button(f'{key_name}: {pygame.key.name(getter())}', capture_sub_menu)
+
+    def on_reset(_):
+        capture_button.set_title(f'{key_name}: {pygame.key.name(getter())}')
+        parent_menu.select_widget(capture_button)
+
+    capture_sub_menu.set_onreset(on_reset)
+
+
+def settings_submenu():
+    copied_theme = menu_theme.copy()
+    copied_theme.widget_font_size = 20
+    settings_menu = pygame_menu.menu.Menu(
+        "Settings",
+        frame_width,
+        frame_height,
+        theme=copied_theme
+    )
+
+    add_key_capture_button(settings_menu, "Fret 1", lambda: SETTINGS.keys[0], lambda x: SETTINGS.keys.__setitem__(0, x))
+    add_key_capture_button(settings_menu, "Fret 2", lambda: SETTINGS.keys[1], lambda x: SETTINGS.keys.__setitem__(1, x))
+    add_key_capture_button(settings_menu, "Fret 3", lambda: SETTINGS.keys[2], lambda x: SETTINGS.keys.__setitem__(2, x))
+    add_key_capture_button(settings_menu, "Fret 4", lambda: SETTINGS.keys[3], lambda x: SETTINGS.keys.__setitem__(3, x))
+    add_key_capture_button(settings_menu, "Fret 5", lambda: SETTINGS.keys[4], lambda x: SETTINGS.keys.__setitem__(4, x))
+    add_key_capture_button(settings_menu, "Strum 1", lambda: SETTINGS.strum_keys[0], lambda x: SETTINGS.strum_keys.__setitem__(0, x))
+    add_key_capture_button(settings_menu, "Strum 2", lambda: SETTINGS.strum_keys[1], lambda x: SETTINGS.strum_keys.__setitem__(1, x))
+
+    def save():
+        SETTINGS.save()
+        main_menu.reset(1)
+
+    settings_menu.add.button('Save', save, font_color="gray37")
+    settings_menu.add.button('Back', pygame_menu.events.BACK, font_color="gray37")
+    return settings_menu
+
 
 def initialize_menu() -> Menu:
     """Shows the menu for the game."""
-    global menu
+    global main_menu
 
-    menu = pygame_menu.Menu('Welcome', frame_width, frame_height, theme=menu_theme)
-    menu.add.button('Play', song_select_submenu())
-    menu.add.button('Quit', pygame_menu.events.EXIT)
+    main_menu = pygame_menu.Menu('Welcome', frame_width, frame_height, theme=menu_theme)
+    main_menu.add.button('Play', song_select_submenu())
+    main_menu.add.button('Settings', settings_submenu())
+    main_menu.add.button('Quit', pygame_menu.events.EXIT)
 
-    return menu
+    return main_menu
 
 
 def main():
@@ -280,7 +344,7 @@ def main():
         difficulty = Difficulties(args.difficulty)
         start_the_game(song, difficulty)
     else:
-        menu.mainloop(surface)
+        main_menu.mainloop(surface)
 
 
 if __name__ == '__main__':

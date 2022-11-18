@@ -1,4 +1,8 @@
+import logging
+
 import pygame
+
+logger = logging.getLogger(__name__)
 
 header_height = 100
 
@@ -81,6 +85,9 @@ class Settings:
     def __init__(self):
         self.keys = [pygame.K_a, pygame.K_s, pygame.K_d, pygame.K_f, pygame.K_g]
         self.strum_keys = [pygame.K_UP, pygame.K_DOWN]
+
+    def save(self):
+        logger.info("bzzz.... bzzz... I totally saved the settings ;)")
 
 
 class State:
