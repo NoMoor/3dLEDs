@@ -44,14 +44,28 @@ lane_start_y = header_height
 lane_end_y = lane_start_y + lane_height
 note_target_y = lane_end_y - lane_target_to_end
 note_hit_box_height = 15
+
+# Deprecated. Don't use this.
 note_hit_box_min = note_target_y - note_hit_box_height
 note_hit_box_max = note_target_y + note_hit_box_height
 
 NOTE_HIT_EVENT = pygame.USEREVENT + 1
 NOTE_MISS_EVENT = pygame.USEREVENT + 2
 
+# Represents the portion of a quarter-note that can be missed by and still count as a hit where higher is a smaller
+# hit window.
+# Ex: If this is 16, a note has to be within 1/16 of a quarter note to be considered a hit.
+hit_buffer = 8
+
+
 # Visual box drawn on the screen to indicate where to hit notes.
-hitbox_visual = pygame.Rect(frame_padding, note_hit_box_min, highway_width, note_hit_box_height * 2)
+def get_visual_hitbox(resolution: int):
+    # TODO: Take into account note speed
+    pix_per_tick = lane_start_to_target / (resolution * 4)  # distance to travel
+    ticks_in_hit_window = resolution / hit_buffer
+    delta = pix_per_tick * ticks_in_hit_window
+    return pygame.Rect(frame_padding, note_target_y - delta, highway_width, delta * 2)
+
 
 def lane_x(lane_id):
     return frame_padding + lane_outside_padding + (note_width + lane_internal_padding) * lane_id

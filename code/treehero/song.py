@@ -1,8 +1,11 @@
+from __future__ import annotations
+
 import glob
 import itertools
 import logging
 import os
 from collections import namedtuple
+from dataclasses import dataclass
 
 import chparse
 from chparse import chart as parse_chart, BPM
@@ -56,10 +59,9 @@ class TreeChart:
 
         return sync_frames
 
-    def to_ticks(self, current_time_ms) -> float:
+    def to_time(self, current_time_ms) -> Time:
         """
-        Takes in the current time (ms), the sync track, and the resolution of the song and returns the current_ms as a
-        value of ticks.
+        Takes in the current time (ms) and returns the time object related to this point in the song.
         """
         f = self.sync_data[0]
         for frame in self.sync_data:
@@ -67,7 +69,8 @@ class TreeChart:
                 break
             f = frame
 
-        return f.time_ticks + self.ms_to_ticks(current_time_ms - f.time_ms, f.milli_bpm)
+        ticks = f.time_ticks + self.ms_to_ticks(current_time_ms - f.time_ms, f.milli_bpm)
+        return Time(int(ticks), self.resolution, f.milli_bpm)
 
     def ms_to_ticks(self, ms, milli_bpm) -> float:
         """Converts from a given millisecond value to ticks."""
@@ -165,3 +168,11 @@ def make_song(folder: str) -> Song:
         [glob.glob(os.path.join('treehero', 'songs', folder, t)) for t in ('*.ogg', '*.mp3')])))
 
     return Song(folder, artist, name, chart, has_music)
+
+
+@dataclass
+class Time:
+    """Represents a time class"""
+    ticks: int
+    resolution: int
+    milli_bpm: int

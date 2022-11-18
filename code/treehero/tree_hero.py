@@ -119,6 +119,7 @@ def play_song(screen: Surface, song: Song, difficulty=chparse.EXPERT):
 
     pygame.mixer.music.play()
     frame_num = 0
+    fret_num = 0
     tracker_start = time.perf_counter()
 
     paused = False
@@ -127,13 +128,13 @@ def play_song(screen: Surface, song: Song, difficulty=chparse.EXPERT):
         # Subtract the offset from the play time. Usually, we would start the playback at the offset position
         # but not all codecs support this. Instead, play the whole song and remove the offset from the position.
         current_time_ms = pygame.mixer.music.get_pos() - chart_offset_ms
-        current_ticks = chart.to_ticks(current_time_ms)
+        current_time = chart.to_time(current_time_ms)
 
         # Load in the notes that should be visible
-        while note_list and note_list[0].time < current_ticks + lead_time_ticks:
+        while note_list and note_list[0].time < current_time.ticks + lead_time_ticks:
             note = note_list.pop(0)
             highway.add_note(lane_id=note.fret, note_id=generate_note_id(), note_ticks=note.time)
-            logger.debug("Spawn tk:[%s] ln[%s]", int(current_ticks), note.fret)
+            logger.debug("Spawn tk:[%s] ln[%s]", int(current_time.ticks), note.fret)
 
         # Figure out which buttons are being pressed
         events = pygame.event.get()
@@ -159,7 +160,7 @@ def play_song(screen: Surface, song: Song, difficulty=chparse.EXPERT):
 
         if not paused:
             # Update physics of the lanes
-            highway.update(keys, events, current_ticks, dt)
+            highway.update(keys, events, current_time, dt)
 
             # Redraw the screen
             screen.fill((30, 30, 30))
@@ -167,7 +168,7 @@ def play_song(screen: Surface, song: Song, difficulty=chparse.EXPERT):
             # Render debug info
             if debug:
                 # Draw the hit box
-                pygame.draw.rect(screen, (50, 100, 50), hitbox_visual)
+                pygame.draw.rect(screen, (50, 100, 50), get_visual_hitbox(current_time.resolution))
 
                 # Render FPS
                 fps_surface = score_font.render(f'FPS: {frame_num / (time.perf_counter() - tracker_start):05.1f}', False, fps_color)

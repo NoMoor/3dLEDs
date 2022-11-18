@@ -3,9 +3,10 @@ from enum import Enum
 
 import pygame
 
-from const import note_width, note_height, notes_colors, lane_x, note_hit_box_max, note_miss_color, \
-    note_hit_box_min, note_hit_color, lane_start_y, lane_end_y, note_speed, lane_start_to_target, note_target_y, \
-    SETTINGS, NOTE_HIT_EVENT, NOTE_MISS_EVENT
+from const import note_width, note_height, notes_colors, lane_x, note_miss_color, \
+    note_hit_color, lane_start_y, lane_end_y, note_speed, lane_start_to_target, note_target_y, \
+    SETTINGS, NOTE_HIT_EVENT, NOTE_MISS_EVENT, hit_buffer
+from treehero.song import Time
 
 logger = logging.getLogger(__name__)
 
@@ -52,7 +53,7 @@ class Note(pygame.sprite.Sprite):
         # is needed if notes are not chords
         # return keys[self.lane.settings.strum_keys[0]] or keys[self.lane.settings.strum_keys[1]]
 
-    def update(self, keys, events, current_time, dt):
+    def update(self, keys, events, current_time: Time, dt):
         # Note goes off-screen.
         if self.rect.y > lane_end_y:
             self.kill()
@@ -61,15 +62,15 @@ class Note(pygame.sprite.Sprite):
             pygame.event.post(pygame.event.Event(NOTE_HIT_EVENT))
             self.kill()
         # Note goes past the spot where it is hittable.
-        elif self.rect.y > note_hit_box_max:
+        elif current_time.ticks > self.get_hit_window(current_time).stop:
             if not self.scored:
                 self.color = pygame.Color(note_miss_color)
                 pygame.event.post(pygame.event.Event(NOTE_MISS_EVENT))
-                logger.debug(f"Miss note - i:%s y:%s", self.note_id, self.rect.y)
+                logger.info(f"Miss note - i:%s t:%s", self.ticks, current_time.ticks)
             self.scored = True
         # If the note can be hit and is in the sweet spot and the key is pressed, mark it as hit.
-        elif note_hit_box_min < self.rect.y < note_hit_box_max and \
-                keys[SETTINGS.keys[self.lane_id]] and self.is_valid_strum(keys):
+        elif current_time.ticks in self.get_hit_window(current_time) \
+                and keys[SETTINGS.keys[self.lane_id]] and self.is_valid_strum(keys):
             if not self.was_hit:
                 logger.debug(f"Hitt note - i:{self.note_id} y:{self.rect.y}")
                 self.color = pygame.Color(note_hit_color)
@@ -80,13 +81,17 @@ class Note(pygame.sprite.Sprite):
 
         # Check how long it is between now and when we should be getting to the bottom
         # Based on that time and the speed, set the height.
-        time_to_target = self.ticks - current_time
+        ticks_to_target = self.ticks - current_time.ticks
         # TODO: Change this to be dependent on the resolution / bpm since ticks are different sizes
         total_travel_time = 10_000 / note_speed
         pix_per_ms = lane_start_to_target / total_travel_time
 
-        self.rect.y = note_target_y - int(time_to_target * pix_per_ms)
+        self.rect.y = note_target_y - int(ticks_to_target * pix_per_ms)
         self.image.fill(self.color)
+
+    def get_hit_window(self, current_time: Time) -> range:
+        delta = current_time.resolution / hit_buffer
+        return range(int(self.ticks - delta), int(self.ticks + delta))
 
 
 class Strum(Enum):
