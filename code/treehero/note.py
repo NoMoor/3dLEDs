@@ -5,7 +5,7 @@ import pygame
 
 from const import note_width, note_height, notes_colors, lane_x, note_hit_box_max, note_miss_color, \
     note_hit_box_min, note_hit_color, lane_start_y, lane_end_y, note_speed, lane_start_to_target, note_target_y, \
-    SETTINGS, STATE
+    SETTINGS, NOTE_HIT_EVENT, NOTE_MISS_EVENT
 
 logger = logging.getLogger(__name__)
 
@@ -58,14 +58,13 @@ class Note(pygame.sprite.Sprite):
             self.kill()
         # Note is hit in a spot where it is hittable
         elif self.was_hit:
-            # TODO: Emit event instead of updating the state directly.
-            STATE.note_hit()
+            pygame.event.post(pygame.event.Event(NOTE_HIT_EVENT))
             self.kill()
         # Note goes past the spot where it is hittable.
         elif self.rect.y > note_hit_box_max:
             if not self.scored:
                 self.color = pygame.Color(note_miss_color)
-                STATE.note_miss()
+                pygame.event.post(pygame.event.Event(NOTE_MISS_EVENT))
                 logger.debug(f"Miss note - i:%s y:%s", self.note_id, self.rect.y)
             self.scored = True
         # If the note can be hit and is in the sweet spot and the key is pressed, mark it as hit.

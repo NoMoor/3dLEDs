@@ -47,6 +47,9 @@ note_hit_box_height = 15
 note_hit_box_min = note_target_y - note_hit_box_height
 note_hit_box_max = note_target_y + note_hit_box_height
 
+NOTE_HIT_EVENT = pygame.USEREVENT + 1
+NOTE_MISS_EVENT = pygame.USEREVENT + 2
+
 # Visual box drawn on the screen to indicate where to hit notes.
 hitbox_visual = pygame.Rect(frame_padding, note_hit_box_min, highway_width, note_hit_box_height * 2)
 

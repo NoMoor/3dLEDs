@@ -147,6 +147,11 @@ def play_song(screen: Surface, song: Song, difficulty=chparse.EXPERT):
                 else:
                     pygame.mixer.music.unpause()
 
+            if e.type == NOTE_HIT_EVENT:
+                STATE.note_hit()
+            if e.type == NOTE_MISS_EVENT:
+                STATE.note_miss()
+
             if e.type == pygame.QUIT:
                 pygame.mixer.music.stop()
                 return
