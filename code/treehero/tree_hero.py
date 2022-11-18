@@ -12,7 +12,7 @@ import pygame_menu
 from chparse import Difficulties
 from pygame import Surface
 from pygame.font import Font
-from pygame_menu import Menu
+from pygame_menu import Menu, Theme
 
 from const import *
 from highway import Highway
@@ -41,13 +41,19 @@ version = "0.4"
 next_note_id = 0
 debug = True
 
-menu_theme = pygame_menu.themes.THEME_DARK
+menu_theme = Theme(background_color=(100, 0, 0, 200),  # transparent background
+                   title_background_color=(20, 80, 20),
+                   title_font_shadow=False,
+                   title_font=pygame_menu.font.FONT_COMIC_NEUE,
+                   title_bar_style=pygame_menu.widgets.MENUBAR_STYLE_ADAPTIVE,
+                   widget_padding=0)
 
 title_font: Optional['Font'] = None
 score_font: Optional['Font'] = None
 
 main_menu: Optional['pygame_menu.Menu'] = None
 surface: Optional['pygame_menu.Menu'] = None
+
 
 def generate_note_id():
     """Generates the id for th next note."""
@@ -170,7 +176,8 @@ def play_song(screen: Surface, song: Song, difficulty=chparse.EXPERT):
                 pygame.draw.rect(screen, (50, 100, 50), get_visual_hitbox(current_time.resolution))
 
                 # Render FPS
-                fps_surface = score_font.render(f'FPS: {frame_num / (time.perf_counter() - tracker_start):05.1f}', False, fps_color)
+                fps_surface = score_font.render(f'FPS: {frame_num / (time.perf_counter() - tracker_start):05.1f}',
+                                                False, fps_color)
                 screen.blit(fps_surface, (frame_width - 110, 0))
                 if not frame_num % 60:
                     tracker_start = time.perf_counter()
@@ -220,7 +227,7 @@ def difficulty_select(song: Song):
 
 def song_select_submenu():
     copied_theme = menu_theme.copy()
-    copied_theme.widget_font_size = 20
+    copied_theme.widget_font_size = 25
     song_select_menu = pygame_menu.menu.Menu(
         "Song select",
         frame_width,
@@ -240,13 +247,15 @@ def song_select_submenu():
     song_select_menu.add.button('Return to main menu', pygame_menu.events.BACK, font_color="gray37")
     return song_select_menu
 
+
 def capture_keypress_menu(key_name: str, setter: Callable[[int], None]):
     """Displays a menu to capture the button input."""
+    copied_theme = menu_theme.copy()
     capture_menu = pygame_menu.menu.Menu(
         "Capture",
-        400,
-        400,
-        theme=menu_theme
+        frame_width,
+        frame_height,
+        theme=copied_theme
     )
 
     def capture_on_update(events, curr_menu):
@@ -254,7 +263,6 @@ def capture_keypress_menu(key_name: str, setter: Callable[[int], None]):
             if e.type == pygame.K_ESCAPE:
                 curr_menu.reset(1)
             if e.type == pygame.KEYDOWN:
-                logger.info(e)
                 setter(e.key)
                 curr_menu.reset(1)
 
@@ -269,10 +277,10 @@ def add_key_capture_button(parent_menu: Menu, key_name: str, getter: Callable[[]
     Convenience method for creating a button which captures a keyboard input and calls the setter to store the value.
     """
     capture_sub_menu = capture_keypress_menu(key_name, setter)
-    capture_button = parent_menu.add.button(f'{key_name}: {pygame.key.name(getter())}', capture_sub_menu)
+    capture_button = parent_menu.add.button(f'{key_name}: {pygame.key.name(getter()).upper()}', capture_sub_menu)
 
     def on_reset(_):
-        capture_button.set_title(f'{key_name}: {pygame.key.name(getter())}')
+        capture_button.set_title(f'{key_name}: {pygame.key.name(getter()).upper()}')
         parent_menu.select_widget(capture_button)
 
     capture_sub_menu.set_onreset(on_reset)
@@ -293,8 +301,10 @@ def settings_submenu():
     add_key_capture_button(settings_menu, "Fret 3", lambda: SETTINGS.keys[2], lambda x: SETTINGS.keys.__setitem__(2, x))
     add_key_capture_button(settings_menu, "Fret 4", lambda: SETTINGS.keys[3], lambda x: SETTINGS.keys.__setitem__(3, x))
     add_key_capture_button(settings_menu, "Fret 5", lambda: SETTINGS.keys[4], lambda x: SETTINGS.keys.__setitem__(4, x))
-    add_key_capture_button(settings_menu, "Strum 1", lambda: SETTINGS.strum_keys[0], lambda x: SETTINGS.strum_keys.__setitem__(0, x))
-    add_key_capture_button(settings_menu, "Strum 2", lambda: SETTINGS.strum_keys[1], lambda x: SETTINGS.strum_keys.__setitem__(1, x))
+    add_key_capture_button(settings_menu, "Strum 1", lambda: SETTINGS.strum_keys[0],
+                           lambda x: SETTINGS.strum_keys.__setitem__(0, x))
+    add_key_capture_button(settings_menu, "Strum 2", lambda: SETTINGS.strum_keys[1],
+                           lambda x: SETTINGS.strum_keys.__setitem__(1, x))
 
     def save():
         SETTINGS.save()
@@ -318,8 +328,8 @@ def initialize_menu() -> Menu:
 
 
 def main():
-
-    parser = argparse.ArgumentParser(prog='TreeHero', description='Timing based game to play locally and on lit christmas trees.')
+    parser = argparse.ArgumentParser(prog='TreeHero',
+                                     description='Timing based game to play locally and on lit christmas trees.')
     parser.add_argument('-s', '--selected-song', type=str, help='The name of the song folder to play. Skips the menu.')
     parser.add_argument('-d', '--difficulty', type=str, default="Expert", help='The difficulty to play')
     args = parser.parse_args()

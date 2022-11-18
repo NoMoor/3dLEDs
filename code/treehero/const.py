@@ -1,4 +1,9 @@
+from __future__ import annotations
+
+import json
 import logging
+import os.path
+import pickle
 
 import pygame
 
@@ -34,7 +39,7 @@ highway_width = (lane_outside_padding * 2) + (note_width * lane_count) + (lane_i
 fps = 100
 spawn_interval = 30
 frame_height = lane_height + header_height
-frame_padding = 150
+frame_padding = 250
 frame_width = highway_width + (frame_padding * 2)
 notes_colors = ["palegreen2", "firebrick1", "goldenrod2", "dodgerblue1", "coral"]
 note_miss_color = "orangered"
@@ -61,6 +66,8 @@ NOTE_MISS_EVENT = pygame.USEREVENT + 2
 # Ex: If this is 16, a note has to be within 1/16 of a quarter note to be considered a hit.
 hit_buffer = 8
 
+DATA_FOLDER = os.path.join("treehero", "data")
+SETTINGS_FILE = os.path.join(DATA_FOLDER, "settings.json")
 
 # Visual box drawn on the screen to indicate where to hit notes.
 def get_visual_hitbox(resolution: int):
@@ -87,7 +94,32 @@ class Settings:
         self.strum_keys = [pygame.K_UP, pygame.K_DOWN]
 
     def save(self):
+        if not os.path.exists(DATA_FOLDER):
+            os.makedirs(DATA_FOLDER)
+
+        with open(SETTINGS_FILE, 'w') as outfile:
+            outfile.write(json.dumps(self.__dict__(), sort_keys=True, indent=True))
         logger.info("bzzz.... bzzz... I totally saved the settings ;)")
+
+    def __dict__(self):
+        return {
+            "keys": self.keys,
+            "strum_keys": self.strum_keys
+        }
+
+    @classmethod
+    def load(cls) -> Settings:
+        s = Settings()
+        if os.path.exists(SETTINGS_FILE):
+            with open(SETTINGS_FILE, 'r') as infile:
+                data_str = "".join(infile.readlines())
+                logger.info("loading settings data: %s", data_str)
+                data = json.loads(data_str)
+
+            s.keys = data["keys"]
+            s.strum_keys = data["strum_keys"]
+
+        return s
 
 
 class State:
@@ -106,5 +138,5 @@ class State:
         self.net_score = self.net_score - 1
 
 
-SETTINGS = Settings()
+SETTINGS = Settings.load()
 STATE = State()
