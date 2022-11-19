@@ -2,8 +2,7 @@ import logging
 
 import pygame
 
-from const import note_width, note_height, notes_colors, lane_x, note_speed_per_ms, note_hit_box_max, note_miss_color, \
-    note_hit_box_min, note_hit_color, lane_start_y, lane_end_y, note_speed, lane_start_to_target, note_target_y
+from const import note_width, note_height, notes_colors, lane_x, lane_start_y
 
 logger = logging.getLogger(__name__)
 

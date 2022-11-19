@@ -3,7 +3,7 @@ from __future__ import annotations
 import pygame
 
 from const import note_width, note_height, notes_colors, note_target_y, lane_x, string_width, lane_height, lane_start_y, \
-    lane_count
+    lane_count, lane_internal_padding, lane_start_to_target_y
 from note import Note
 
 
@@ -25,7 +25,7 @@ class Highway(pygame.sprite.Group):
 
 
 TRANSPARENT = (0, 0, 0, 0)
-BLUE = (0, 0, 255)
+BLUE = (0, 0, 255, 100)
 
 
 class NoteTarget(pygame.sprite.Sprite):
@@ -49,7 +49,16 @@ class LaneCenter(pygame.sprite.Sprite):
         super().__init__(*args)
         self.color = (50, 50, 50)
 
-        self.image = pygame.Surface((string_width, lane_height))
+        # TODO: This is used in notes too. Extract.
+        lane_start_to_target_x = (lane_id - 2) * (lane_internal_padding + note_width)
+        string_bottom_x = lane_x(lane_id) + (note_width // 2) - (string_width // 2)
+        width = abs(lane_start_to_target_x) + string_width
+
+        print(f"lstx {lane_start_to_target_x} w {width} lane: {lane_id}")
+        self.image = pygame.Surface((width, lane_height), pygame.SRCALPHA)
         self.rect = self.image.get_rect()
-        self.rect.move_ip(lane_x(lane_id) + (note_width // 2) - (string_width // 2), lane_start_y)
-        self.image.fill(self.color)
+        self.rect.move_ip(string_bottom_x if lane_start_to_target_x < 0 else string_bottom_x - lane_start_to_target_x,
+                          lane_start_y)
+        self.image.fill(TRANSPARENT)
+
+        pygame.draw.line(self.image, (50, 50, 50), (max(0, -lane_start_to_target_x), 0), (max(0, lane_start_to_target_x), lane_start_to_target_y), width=string_width)

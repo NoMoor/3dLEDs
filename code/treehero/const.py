@@ -3,7 +3,6 @@ from __future__ import annotations
 import json
 import logging
 import os.path
-import pickle
 
 import pygame
 
@@ -15,26 +14,26 @@ game_title = "Tree Hero"
 
 lane_count = 5
 note_width = 32
-note_height = 5
+note_height = 20
 string_width = 3
 lane_width = note_width
 lane_height = 800
 lane_target_to_end = 100
-lane_start_to_target = lane_height - lane_target_to_end
+lane_start_to_target_y = lane_height - lane_target_to_end
 
 # Visual padding to the left and right of the lanes
 lane_outside_padding = 50
 # Visual padding between lanes
-lane_internal_padding = 2
+lane_internal_padding = 10
 # Number of pixesl to move the note per ms
 # Deprecated: Don't use this.
 note_speed_per_ms = 1 / 5
 
 # Inverse note speed in [1 - 20] where 10 takes 1 second to go down the lane
 # User editable
-note_speed = 10
+note_speed = 5
 # The number of beats ahead to render on the highway
-highway_draw_distance = 2 * 4
+highway_draw_distance = 3
 
 highway_width = (lane_outside_padding * 2) + (note_width * lane_count) + (lane_internal_padding * (lane_count - 1))
 
@@ -71,10 +70,19 @@ hit_buffer = 8
 DATA_FOLDER = os.path.join("treehero", "data")
 SETTINGS_FILE = os.path.join(DATA_FOLDER, "settings.json")
 
+
+def total_ticks_on_highway(resolution: int):
+    """
+    The number of ticks the notes spend on the highway from the time they are loaded in
+    until they touch the target spot.
+    """
+    return resolution * highway_draw_distance * (10 / note_speed)
+
+
 # Visual box drawn on the screen to indicate where to hit notes.
 def get_visual_hitbox(resolution: int):
     # TODO: Take into account note speed
-    pix_per_tick = lane_start_to_target / (resolution * 4)  # distance to travel
+    pix_per_tick = lane_start_to_target_y / (resolution * 4)  # distance to travel
     ticks_in_hit_window = resolution / hit_buffer
     delta = pix_per_tick * ticks_in_hit_window
     return pygame.Rect(frame_padding, note_target_y - delta, highway_width, delta * 2)

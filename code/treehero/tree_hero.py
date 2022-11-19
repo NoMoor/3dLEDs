@@ -119,7 +119,7 @@ def play_song(screen: Surface, song: Song, difficulty=chparse.EXPERT):
     chart_offset_ms = float(chart.offset) * 1000
 
     # Show one frame of notes
-    lead_time_ticks = chart.resolution * highway_draw_distance * (10 / note_speed)
+    lead_time_ticks = total_ticks_on_highway(chart.resolution)
 
     pygame.mixer.music.play()
     frame_num = 0

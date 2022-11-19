@@ -4,8 +4,9 @@ from enum import Enum
 import pygame
 
 from const import note_width, note_height, notes_colors, lane_x, note_miss_color, \
-    note_hit_color, lane_start_y, lane_end_y, note_speed, lane_start_to_target, note_target_y, \
-    SETTINGS, NOTE_HIT_EVENT, NOTE_MISS_EVENT, hit_buffer, highway_draw_distance
+    note_hit_color, lane_start_y, lane_end_y, lane_start_to_target_y, note_target_y, \
+    SETTINGS, NOTE_HIT_EVENT, NOTE_MISS_EVENT, hit_buffer, lane_internal_padding, \
+    total_ticks_on_highway
 from treehero.song import Time
 
 logger = logging.getLogger(__name__)
@@ -19,14 +20,15 @@ class Note(pygame.sprite.Sprite):
         self.lane_id = lane_id
         self.note_id = note_id
         self.ticks = note_ticks
-        self.image = pygame.Surface((note_width, note_height))
+        self.og_image = pygame.Surface((note_width, note_height))
         self.rect = pygame.display.get_surface().get_rect()
         self.color = pygame.Color(notes_colors[self.lane_id])
 
         # Calculate the offset of the lane to get this in the right column.
         self.rect.move_ip((lane_x(self.lane_id), lane_start_y))
 
-        self.image.fill(self.color)
+        self.og_image.fill(self.color)
+        self.image = self.og_image
         self.was_hit = False
         self.scored = False
         self.last_strum_direction = Strum.NONE
@@ -82,11 +84,21 @@ class Note(pygame.sprite.Sprite):
         # Check how long it is between now and when we should be getting to the bottom
         # Based on that time and the speed, set the height.
         ticks_to_target = self.ticks - current_time.ticks
+        total_highway_ticks = total_ticks_on_highway(current_time.resolution)
 
-        pix_per_tick = lane_start_to_target / (current_time.resolution * highway_draw_distance * 10 / note_speed)
+        lane_start_to_target_x = (self.lane_id - 2) * (lane_internal_padding + note_width) - (note_width // 2)
 
-        self.rect.y = note_target_y - int(ticks_to_target * pix_per_tick)
-        self.image.fill(self.color)
+        pix_per_tick_x = lane_start_to_target_x / total_highway_ticks
+        pix_per_tick_y = lane_start_to_target_y / total_highway_ticks
+
+        self.rect.y = note_target_y - int(ticks_to_target * pix_per_tick_y)
+        self.rect.x = lane_x(self.lane_id) - int(ticks_to_target * pix_per_tick_x)
+
+        self.og_image.fill(self.color)
+
+        ratio = (1 - ticks_to_target / total_highway_ticks)
+        # TODO: Make oval.
+        self.image = pygame.transform.scale(self.og_image, (note_width * ratio, note_height * ratio))
 
     def get_hit_window(self, current_time: Time) -> range:
         delta = current_time.resolution / hit_buffer
