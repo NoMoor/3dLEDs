@@ -52,7 +52,14 @@ title_font: Optional['Font'] = None
 score_font: Optional['Font'] = None
 
 main_menu: Optional['pygame_menu.Menu'] = None
+pause_menu: Optional['pygame_menu.Menu'] = None
 surface: Optional['pygame_menu.Menu'] = None
+
+# Keeps the song in the main loop. Set false to jump back to the main menu.
+playing_song = False
+
+# Whether or not to display the pause menu.
+paused = False
 
 
 def generate_note_id():
@@ -125,9 +132,7 @@ def play_song(screen: Surface, song: Song, difficulty=chparse.EXPERT):
     frame_num = 0
     tracker_start = time.perf_counter()
 
-    paused = False
-
-    while True:
+    while playing_song:
         # Subtract the offset from the play time. Usually, we would start the playback at the offset position
         # but not all codecs support this. Instead, play the whole song and remove the offset from the position.
         current_time_ms = pygame.mixer.music.get_pos() - chart_offset_ms
@@ -143,14 +148,7 @@ def play_song(screen: Surface, song: Song, difficulty=chparse.EXPERT):
         events = pygame.event.get()
         for e in events:
             if e.type == pygame.KEYDOWN and e.key == pygame.K_ESCAPE:
-                # Stop music and jump back to the menu
-                paused = not paused
-
-                if paused:
-                    pygame.mixer.music.pause()
-                else:
-                    pygame.mixer.music.unpause()
-
+                pause()
             if e.type == NOTE_HIT_EVENT:
                 STATE.note_hit()
             if e.type == NOTE_MISS_EVENT:
@@ -161,7 +159,8 @@ def play_song(screen: Surface, song: Song, difficulty=chparse.EXPERT):
                 return
         keys = pygame.key.get_pressed()
 
-        if not paused:
+        # If the song is still running.
+        if not paused and playing_song:
             # Update physics of the lanes
             highway.update(keys, events, current_time, dt)
 
@@ -191,9 +190,45 @@ def play_song(screen: Surface, song: Song, difficulty=chparse.EXPERT):
         frame_num = frame_num + 1
 
 
+def pause():
+    """Pauses a running game."""
+    pygame.mixer.music.pause()
+
+    global paused
+    paused = True
+    pause_menu.enable()
+    pause_menu.mainloop(surface)
+
+
+def resume():
+    """Resume a paused game."""
+    pygame.mixer.music.unpause()
+
+    global paused
+    paused = False
+    pause_menu.disable()
+
+
+def quit_song():
+    """Quits out of the song."""
+    global paused
+    paused = False
+
+    global playing_song
+    playing_song = False
+
+    pause_menu.select_widget(pause_menu.get_widgets()[0])  # Reset selection to the first widget.
+    pause_menu.disable()
+    main_menu.enable()
+
+
 def start_the_game(song, difficulty):
     """Launches the game itself."""
 
+    global playing_song
+    playing_song = True
+
+    main_menu.full_reset()
     main_menu.disable()
 
     logger.info(f"Launching {song.folder} at {difficulty}")
@@ -270,6 +305,22 @@ def capture_keypress_menu(key_name: str, setter: Callable[[int], None]):
     return capture_menu
 
 
+def initialize_pause_menu() -> Menu:
+    global pause_menu
+    pause_menu = pygame_menu.menu.Menu(
+        "Pause",
+        frame_width,
+        frame_height,
+        theme=menu_theme
+    )
+
+    pause_menu.add.button("Resume", resume)
+    pause_menu.add.button("Settings", settings_submenu(pause_menu))
+    pause_menu.add.button("Quit Song", quit_song)
+
+    return pause_menu
+
+
 def add_key_capture_button(parent_menu: Menu, key_name: str, getter: Callable[[], int], setter: Callable[[int], None]):
     """
     Convenience method for creating a button which captures a keyboard input and calls the setter to store the value.
@@ -284,7 +335,7 @@ def add_key_capture_button(parent_menu: Menu, key_name: str, getter: Callable[[]
     capture_sub_menu.set_onreset(on_reset)
 
 
-def settings_submenu():
+def settings_submenu(parent_menu: Menu) -> Menu:
     copied_theme = menu_theme.copy()
     copied_theme.widget_font_size = 20
     settings_menu = pygame_menu.menu.Menu(
@@ -306,20 +357,20 @@ def settings_submenu():
 
     def save():
         SETTINGS.save()
-        main_menu.reset(1)
+        parent_menu.reset(1)
 
     settings_menu.add.button('Save', save, font_color="gray37")
-    settings_menu.add.button('Back', pygame_menu.events.BACK, font_color="gray37")
+    settings_menu.add.button('Cancel', pygame_menu.events.BACK, font_color="gray37")
     return settings_menu
 
 
-def initialize_menu() -> Menu:
+def initialize_main_menu() -> Menu:
     """Shows the menu for the game."""
     global main_menu
 
     main_menu = pygame_menu.Menu('Welcome', frame_width, frame_height, theme=menu_theme)
     main_menu.add.button('Play', song_select_submenu())
-    main_menu.add.button('Settings', settings_submenu())
+    main_menu.add.button('Settings', settings_submenu(main_menu))
     main_menu.add.button('Quit', pygame_menu.events.EXIT)
 
     return main_menu
@@ -344,9 +395,11 @@ def main():
 
     logger.info(f"Starting with {args}")
 
-    initialize_menu()
+    initialize_main_menu()
+    initialize_pause_menu()
 
     if args.selected_song:
+        main_menu.get_submenus()
         # Jump straight to the specified song
         song = make_song(args.selected_song)
         difficulty = Difficulties(args.difficulty)
