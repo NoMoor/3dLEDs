@@ -1,5 +1,6 @@
 import copy
 import csv
+import logging
 import math
 import os
 import re
@@ -9,6 +10,8 @@ import numpy as np
 
 from utils.colors import LED_OFF
 from utils.coords import Coord3d
+
+logger = logging.getLogger(__name__)
 
 IMAGE_HEIGHT = 1920
 IMAGE_WIDTH = 1080
@@ -65,12 +68,12 @@ class LightStripLogger:
         """
         Writes the frames to file.
         """
-        print(f"Writing {len(self.frames)} frames to {self.output_filename}")
+        logging.info(f"Writing {len(self.frames)} frames to {self.output_filename}")
 
         with open(self.output_filename, 'w') as output_file:
             csvwriter = csv.writer(output_file)
             for frame_index, frame in enumerate(self.frames):
-                print(f"Writing {frame_index}", end="\r")
+                print(f"Writing {frame_index}", end="\r")  # Update terminal only with the current write status.
                 data = [frame_index]
                 for led_id in range(self.pixel_count):
                     if led_id in frame:
@@ -81,28 +84,35 @@ class LightStripLogger:
                 csvwriter.writerow(data)
 
 
-def read_coordinates(file_name):
+def read_coordinates(file_name) -> dict[int, Coord3d]:
     """
     Reads coordinates from the given file name. Coordinates must be a CSV file where the ith row contains RGB values
     for the ith element.
     """
     rgb_pattern = re.compile("^([-+]?[01].[0-9]+),([-+]?[01].[0-9]+),([+]?[0-9]+.[0-9]+)$")
 
-    print("Reading lines")
+    logging.info("Reading coordinate file %s", file_name)
     with open(file_name, 'r') as input_file:
         lines = [line.rstrip() for line in input_file.readlines()]
 
     # Scales the coordinates to be in [-500, 500] for x/y and [0, n * 500] for z.
-    def scale(val): return int(val * 500)
+    def scale(val):
+        return int(val * 500)
 
-    print("Processing lines")
+    logging.info("Processing %s coordinates...", len(lines))
     coordinates = {}
     for led_id, xyz in enumerate(lines):
         if not rgb_pattern.match(xyz):
-            print(f"Invalid coordinate input for line {led_id} |{xyz}|."
-                  f" Expected to be comma separated rgb values with x/y in [-1,1] and z > 0. ")
+            logging.exception(f"Invalid coordinate input for line {led_id} |{xyz}|."
+                              f" Expected to be comma separated rgb values with x/y in [-1,1] and z > 0. ")
         x, y, z = list(map(float, xyz.split(",")))
         coordinates[led_id] = Coord3d(led_id, scale(x), scale(y), scale(z))
+
+    logging.info(
+        "Processing complete. Coordinates in [%s, %s] [%s, %s] [%s, %s]",
+        min(map(lambda c: c.x, coordinates.values())), max(map(lambda c: c.x, coordinates.values())),
+        min(map(lambda c: c.y, coordinates.values())), max(map(lambda c: c.y, coordinates.values())),
+        min(map(lambda c: c.z, coordinates.values())), max(map(lambda c: c.z, coordinates.values())))
 
     return coordinates
 

@@ -18,6 +18,7 @@ from const import *
 from highway import Highway
 # Configure logging
 from song import Song, get_all_songs, make_song
+from treehero.tree import Tree
 
 log_formatter = logging.Formatter(fmt="%(asctime)s - %(name)s - [%(levelname)s]: %(message)s",
                                   datefmt='%Y/%m/%d %H:%M:%S')
@@ -39,7 +40,9 @@ logger = logging.getLogger(__name__)
 # Start code
 version = "0.4"
 next_note_id = 0
+
 debug = True
+render_tree = False
 
 menu_theme = Theme(background_color=(100, 0, 0, 200),  # transparent background
                    title_background_color=(20, 80, 20),
@@ -51,9 +54,9 @@ menu_theme = Theme(background_color=(100, 0, 0, 200),  # transparent background
 title_font: Optional['Font'] = None
 score_font: Optional['Font'] = None
 
-main_menu: Optional['pygame_menu.Menu'] = None
-pause_menu: Optional['pygame_menu.Menu'] = None
-surface: Optional['pygame_menu.Menu'] = None
+main_menu: Optional['Menu'] = None
+pause_menu: Optional['Menu'] = None
+surface: Optional['Surface'] = None
 
 # Keeps the song in the main loop. Set false to jump back to the main menu.
 playing_song = False
@@ -179,6 +182,11 @@ def play_song(screen: Surface, song: Song, difficulty=chparse.EXPERT):
                 if not frame_num % 60:
                     tracker_start = time.perf_counter()
                     frame_num = 0
+
+                # Render Fake Tree
+
+            if render_tree:
+                Tree.get_tree().render(surface)
 
             # Render game components
             render_header(screen)
@@ -409,4 +417,5 @@ def main():
 
 
 if __name__ == '__main__':
+    sys.path.insert(1, os.path.join(sys.path[0], '..'))
     main()
