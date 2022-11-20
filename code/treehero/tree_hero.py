@@ -4,6 +4,7 @@ import itertools
 import os.path
 import sys
 import time
+from argparse import Namespace
 from logging.handlers import RotatingFileHandler
 from typing import Optional, Callable
 
@@ -41,8 +42,7 @@ logger = logging.getLogger(__name__)
 version = "0.4"
 next_note_id = 0
 
-debug = True
-render_tree = False
+args: Optional['Namespace']
 
 menu_theme = Theme(background_color=(100, 0, 0, 200),  # transparent background
                    title_background_color=(20, 80, 20),
@@ -171,7 +171,7 @@ def play_song(screen: Surface, song: Song, difficulty=chparse.EXPERT):
             screen.fill((30, 30, 30))
 
             # Render debug info
-            if debug:
+            if args.debug:
                 # Draw the hit box
                 pygame.draw.rect(screen, (50, 100, 50), get_visual_hitbox(current_time.resolution))
 
@@ -185,7 +185,7 @@ def play_song(screen: Surface, song: Song, difficulty=chparse.EXPERT):
 
                 # Render Fake Tree
 
-            if render_tree:
+            if args.render_tree:
                 Tree.get_tree().render(surface)
 
             # Render game components
@@ -388,7 +388,10 @@ def main():
     parser = argparse.ArgumentParser(prog='TreeHero',
                                      description='Timing based game to play locally and on lit christmas trees.')
     parser.add_argument('-s', '--selected-song', type=str, help='The name of the song folder to play. Skips the menu.')
-    parser.add_argument('-d', '--difficulty', type=str, default="Expert", help='The difficulty to play')
+    parser.add_argument('-x', '--difficulty', type=str, default="Expert", help='The difficulty to play')
+    parser.add_argument('-d', '--debug', action="store_true", help='If debug is enabled.')
+    parser.add_argument('-t', '--render-tree', action="store_true", help='If the tree should be rendered.')
+    global args
     args = parser.parse_args()
 
     pygame.init()
@@ -417,5 +420,8 @@ def main():
 
 
 if __name__ == '__main__':
-    sys.path.insert(1, os.path.join(sys.path[0], '..'))
-    main()
+    try:
+        sys.path.insert(1, os.path.join(sys.path[0], '..'))
+        main()
+    except KeyboardInterrupt:
+        logger.info("Caught interrupt. Exiting game.")
