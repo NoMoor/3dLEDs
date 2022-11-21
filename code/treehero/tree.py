@@ -17,7 +17,7 @@ RED = (255, 0, 0)
 GREEN = (0, 255, 0)
 BLUE = (0, 0, 255)
 YELLOW = (255, 255, 0)
-ORANGE = (255, 191, 0)
+ORANGE = (255, 160, 0)
 COLORS = [GREEN, RED, YELLOW, BLUE, ORANGE]
 
 # The relative file containing the tree coordinates.
@@ -53,54 +53,48 @@ class Tree:
         self.max_z = max(map(lambda c: c.z, self.coords.values()))
         self.max_z_coord = max(self.coords.values(), key=lambda c: c.z).with_x(0).with_z(self.max_z + 200)
 
-        self.lane_anchors = self.find_lane_anchors(self.coords)
+        self.lane_assignments = self.get_lane_assignments(self.coords)
 
     def render(self, screen: Surface):
         """Renders all the lights on the tree according to their lane colors."""
         for id_num, coord in self.coords.items():
-            x = abs(self.min_x) + coord.x  # Shift the tree to the right to be visible
-            x *= .25
-            x += shift_x
-            y = self.max_z - coord.z  # In 3d, z is the vertical axis with 0 starting at the bottom.
-            y *= .25
-            y += shift_y
+            # Shift the tree to the right to be visible
+            x = ((abs(self.min_x) + coord.x) * scale) + shift_x
+            # In 3d, z is the vertical axis with 0 starting at the bottom.
+            y = ((self.max_z - coord.z) * scale) + shift_y
 
             pygame.draw.circle(screen, self.get_lane_color(coord), (x, y), 2)
 
-    def get_lane_color(self, c) -> tuple:
+    def get_lane_color(self, c: Coord3d) -> tuple:
         """Picks the lane color of the coordinate based on where it falls on the tree."""
-        top_anchor = self.max_z_coord
+        return COLORS[self.lane_assignments[c.led_id]]
 
-        for i, bc in enumerate(self.lane_anchors):
-            if self.is_left_of(bc, top_anchor, c):
-                return COLORS[i]
-
-        return COLORS[-1]
-
-    def is_left_of(self, a, b, c) -> bool:
+    def is_left_of(self, a: Coord3d, b: Coord3d, c: Coord3d) -> bool:
         """
         Returns true of the `c` coordinate is to the left of the line drawn from `a` to `b`.
         Uses x and z coordinates where x is left-right and z is up-down.
         """
         return ((b.x - a.x) * (c.z - a.z) - (b.z - a.z) * (c.x - a.x)) > 0
 
-    def find_lane_anchors(self, coords) -> list[Coord3d]:
-        """Splits the tree into 5 lanes, picking 5 barrier coordinates at the bottom to separate the lanes."""
+    def get_lane_assignments(self, coords: dict[int, Coord3d]) -> dict[int, int]:
+        """
+        Splits the tree into 5 lanes, picking 5 barrier coordinates at the bottom to separate the lanes. Then assigns
+        every coordinate to a lane and returns the mapping from led_id to lane number.
+        """
 
         # Sort all the coordinates horizontally
-        x_sorted = list(coords.values())
-        x_sorted.sort(key=lambda c: c.x)
-        count = len(x_sorted)
+        min_x = min(map(lambda c: c.x, coords.values()))
+        max_x = max(map(lambda c: c.x, coords.values()))
+        range_x = max_x - min_x
+        delta_x = range_x / 5
 
-        def chunks(lst, n):
-            """Yield successive n-sized chunks from lst."""
-            for i in range(0, len(lst), n):
-                yield lst[i:i + n]
+        anchors = [Coord3d(led_id=-1, x=int(min_x + (delta_x * i)), y=0, z=0) for i in range(1, 6)]
 
-        # Get 5 buckets of even size and then pick the right-most coordinate.
-        bucket_size = count // 5
-        chunked = list(chunks(x_sorted, bucket_size))
+        assignments = {}
+        for c in coords.values():
+            for i, bc in enumerate(anchors):
+                assignments[c.led_id] = i
+                if self.is_left_of(bc, self.max_z_coord, c):
+                    break
 
-        # Anchor the coordinates to the bottom of the tree.
-        chunked = [x[-1].with_z(self.min_z) for x in chunked]
-        return chunked
+        return assignments
