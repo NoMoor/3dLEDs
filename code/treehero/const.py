@@ -61,6 +61,7 @@ note_hit_box_max = note_target_y + note_hit_box_height
 
 NOTE_HIT_EVENT = pygame.USEREVENT + 1
 NOTE_MISS_EVENT = pygame.USEREVENT + 2
+TREE_RENDER_EVENT = pygame.USEREVENT + 3
 
 # Represents the portion of a quarter-note that can be missed by and still count as a hit where higher is a smaller
 # hit window.

@@ -6,8 +6,8 @@ import pygame
 from const import note_width, note_height, notes_colors, lane_x, note_miss_color, \
     note_hit_color, lane_start_y, lane_end_y, lane_start_to_target_y, note_target_y, \
     SETTINGS, NOTE_HIT_EVENT, NOTE_MISS_EVENT, hit_buffer, lane_internal_padding, \
-    total_ticks_on_highway
-from treehero.song import Time
+    total_ticks_on_highway, TREE_RENDER_EVENT
+from song import Time
 
 logger = logging.getLogger(__name__)
 
@@ -99,6 +99,9 @@ class Note(pygame.sprite.Sprite):
         ratio = (1 - ticks_to_target / total_highway_ticks)
         # TODO: Make oval.
         self.image = pygame.transform.scale(self.og_image, (note_width * ratio, note_height * ratio))
+
+        tree_render_event = pygame.event.Event(TREE_RENDER_EVENT, {"lane_id": self.lane_id, "loc": ratio})
+        pygame.event.post(tree_render_event)
 
     def get_hit_window(self, current_time: Time) -> range:
         delta = current_time.resolution / hit_buffer

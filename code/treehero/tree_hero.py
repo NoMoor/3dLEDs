@@ -1,21 +1,25 @@
 import argparse
 import glob
 import itertools
+import logging
 import os.path
 import sys
 import time
 from argparse import Namespace
+
 from logging.handlers import RotatingFileHandler
-from typing import Optional, Callable
+from typing import Callable, Optional
 
 import chparse
+import pygame
 import pygame_menu
 from chparse import Difficulties
 from pygame import Surface
 from pygame.font import Font
 from pygame_menu import Menu, Theme
 
-from const import *
+from const import game_title, title_color, frame_width, header_height, score_color, STATE, total_ticks_on_highway, \
+    get_visual_hitbox, fps_color, fps, NOTE_HIT_EVENT, NOTE_MISS_EVENT, frame_height, SETTINGS, TREE_RENDER_EVENT
 from highway import Highway
 # Configure logging
 from song import Song, get_all_songs, make_song
@@ -42,8 +46,6 @@ logger = logging.getLogger(__name__)
 version = "0.4"
 next_note_id = 0
 
-args: Optional['Namespace']
-
 menu_theme = Theme(background_color=(100, 0, 0, 200),  # transparent background
                    title_background_color=(20, 80, 20),
                    title_font_shadow=False,
@@ -63,6 +65,8 @@ playing_song = False
 
 # Whether or not to display the pause menu.
 paused = False
+
+parsed_args: Optional['Namespace'] = None
 
 
 def generate_note_id():
@@ -157,9 +161,13 @@ def play_song(screen: Surface, song: Song, difficulty=chparse.EXPERT):
             if e.type == NOTE_MISS_EVENT:
                 STATE.note_miss()
 
+            if e.type == TREE_RENDER_EVENT and parsed_args.render_tree:
+                Tree.get_tree().register_note(e.lane_id, e.loc)
+
             if e.type == pygame.QUIT:
                 pygame.mixer.music.stop()
                 return
+
         keys = pygame.key.get_pressed()
 
         # If the song is still running.
@@ -171,7 +179,7 @@ def play_song(screen: Surface, song: Song, difficulty=chparse.EXPERT):
             screen.fill((30, 30, 30))
 
             # Render debug info
-            if args.debug:
+            if parsed_args.debug:
                 # Draw the hit box
                 pygame.draw.rect(screen, (50, 100, 50), get_visual_hitbox(current_time.resolution))
 
@@ -185,7 +193,7 @@ def play_song(screen: Surface, song: Song, difficulty=chparse.EXPERT):
 
                 # Render Fake Tree
 
-            if args.render_tree:
+            if parsed_args.render_tree:
                 Tree.get_tree().render(surface)
 
             # Render game components
@@ -391,8 +399,9 @@ def main():
     parser.add_argument('-x', '--difficulty', type=str, default="Expert", help='The difficulty to play')
     parser.add_argument('-d', '--debug', action="store_true", help='If debug is enabled.')
     parser.add_argument('-t', '--render-tree', action="store_true", help='If the tree should be rendered.')
-    global args
-    args = parser.parse_args()
+
+    global parsed_args
+    parsed_args = parser.parse_args()
 
     pygame.init()
     initialize_fonts()
@@ -404,16 +413,16 @@ def main():
 
     surface = pygame.display.set_mode((frame_width, frame_height))
 
-    logger.info(f"Starting with {args}")
+    logger.info(f"Starting with {parsed_args}")
 
     initialize_main_menu()
     initialize_pause_menu()
 
-    if args.selected_song:
+    if parsed_args.selected_song:
         main_menu.get_submenus()
         # Jump straight to the specified song
-        song = make_song(args.selected_song)
-        difficulty = Difficulties(args.difficulty)
+        song = make_song(parsed_args.selected_song)
+        difficulty = Difficulties(parsed_args.difficulty)
         start_the_game(song, difficulty)
     else:
         main_menu.mainloop(surface)
