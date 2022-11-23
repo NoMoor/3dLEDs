@@ -43,7 +43,7 @@ root_logger.addHandler(console_handler)
 logger = logging.getLogger(__name__)
 
 # Start code
-version = "0.4"
+version = "0.5"
 next_note_id = 0
 
 menu_theme = Theme(background_color=(100, 0, 0, 200),  # transparent background

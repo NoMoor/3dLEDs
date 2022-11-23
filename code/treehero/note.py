@@ -96,7 +96,7 @@ class Note(pygame.sprite.Sprite):
 
         self.og_image.fill(self.color)
 
-        ratio = (1 - ticks_to_target / total_highway_ticks)
+        ratio = 1 - (ticks_to_target / total_highway_ticks)
         # TODO: Make oval.
         self.image = pygame.transform.scale(self.og_image, (note_width * ratio, note_height * ratio))
 
