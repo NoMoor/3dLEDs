@@ -19,8 +19,10 @@ from pygame.font import Font
 from pygame_menu import Menu, Theme
 
 from const import game_title, title_color, frame_width, header_height, score_color, STATE, total_ticks_on_highway, \
-    get_visual_hitbox, fps_color, fps, NOTE_HIT_EVENT, NOTE_MISS_EVENT, frame_height, SETTINGS, TREE_RENDER_EVENT, \
+    get_visual_hitbox, fps_color, fps, NOTE_HIT_EVENT, NOTE_MISS_EVENT, frame_height, TREE_RENDER_EVENT, \
     FRET_PRESS_EVENT
+from treehero.inputs import ControlInput
+from treehero.settings import SETTINGS
 from highway import Highway
 # Configure logging
 from song import Song, get_all_songs, make_song
@@ -114,7 +116,7 @@ def load_music(song_folder: str) -> None:
     file = None
 
     if len(files) > 1:
-        print(files)
+        logger.info("Found multiple files: %s", files)
         if "guitar.ogg" in files:
             file = filter(lambda f: f == "guitar.ogg", files)
         else:
@@ -185,6 +187,9 @@ def play_song(screen: Surface, song: Song, difficulty=chparse.EXPERT):
             if e.type == pygame.QUIT:
                 pygame.mixer.music.stop()
                 return
+
+            if e.type == pygame.JOYBUTTONDOWN or e.type == pygame.JOYBUTTONUP:
+                logger.info("Joy event: %s", e)
 
         keys = pygame.key.get_pressed()
 
@@ -314,7 +319,7 @@ def song_select_submenu():
     return song_select_menu
 
 
-def capture_keypress_menu(key_name: str, setter: Callable[[int], None]):
+def capture_keypress_menu(key_name: str, setter: Callable[[ControlInput], None]) -> Menu:
     """Displays a menu to capture the button input."""
     copied_theme = menu_theme.copy()
     capture_menu = pygame_menu.menu.Menu(
@@ -324,13 +329,20 @@ def capture_keypress_menu(key_name: str, setter: Callable[[int], None]):
         theme=copied_theme
     )
 
-    def capture_on_update(events, curr_menu):
+    def capture_on_update(events, curr_menu: Menu):
         for e in events:
             if e.type == pygame.K_ESCAPE:
                 curr_menu.reset(1)
-            if e.type == pygame.KEYDOWN:
-                setter(e.key)
-                curr_menu.reset(1)
+            if e.type == pygame.KEYDOWN or e.type == pygame.JOYBUTTONDOWN:
+                control_input = ControlInput.from_event(e)
+                setter(control_input)
+
+                curr_menu.unselect_widget()
+                # This is a hack to allow us to correctly bind 'return' or 'select' buttons. Without this, we call
+                # the setter above but the menu isn't correctly updated (goes up one level and then back down to this level)
+                # This introduces a bug where the selection of the parent menu is lost.
+                reset_amount = 2 if control_input.is_select_key() else 1
+                curr_menu.reset(reset_amount)
 
     capture_menu.set_onupdate(capture_on_update)
     capture_menu.add.label(f"Press a key to bind `{key_name}`")
@@ -354,15 +366,15 @@ def initialize_pause_menu() -> Menu:
     return pause_menu
 
 
-def add_key_capture_button(parent_menu: Menu, key_name: str, getter: Callable[[], int], setter: Callable[[int], None]):
+def add_key_capture_button(parent_menu: Menu, key_name: str, getter: Callable[[], ControlInput], setter: Callable[[ControlInput], None]):
     """
     Convenience method for creating a button which captures a keyboard input and calls the setter to store the value.
     """
     capture_sub_menu = capture_keypress_menu(key_name, setter)
-    capture_button = parent_menu.add.button(f'{key_name}: {pygame.key.name(getter()).upper()}', capture_sub_menu)
+    capture_button = parent_menu.add.button(f'{key_name}: {getter()}', capture_sub_menu)
 
     def on_reset(_):
-        capture_button.set_title(f'{key_name}: {pygame.key.name(getter()).upper()}')
+        capture_button.set_title(f'{key_name}: {getter()}')
         parent_menu.select_widget(capture_button)
 
     capture_sub_menu.set_onreset(on_reset)
@@ -378,11 +390,11 @@ def settings_submenu(parent_menu: Menu) -> Menu:
         theme=copied_theme
     )
 
-    add_key_capture_button(settings_menu, "Fret 1", lambda: SETTINGS.keys[0], lambda x: SETTINGS.keys.__setitem__(0, x))
-    add_key_capture_button(settings_menu, "Fret 2", lambda: SETTINGS.keys[1], lambda x: SETTINGS.keys.__setitem__(1, x))
-    add_key_capture_button(settings_menu, "Fret 3", lambda: SETTINGS.keys[2], lambda x: SETTINGS.keys.__setitem__(2, x))
-    add_key_capture_button(settings_menu, "Fret 4", lambda: SETTINGS.keys[3], lambda x: SETTINGS.keys.__setitem__(3, x))
-    add_key_capture_button(settings_menu, "Fret 5", lambda: SETTINGS.keys[4], lambda x: SETTINGS.keys.__setitem__(4, x))
+    add_key_capture_button(settings_menu, "Fret 1", lambda: SETTINGS.keys[0], lambda x: SETTINGS.bind_fret_input(0, x))
+    add_key_capture_button(settings_menu, "Fret 2", lambda: SETTINGS.keys[1], lambda x: SETTINGS.bind_fret_input(1, x))
+    add_key_capture_button(settings_menu, "Fret 3", lambda: SETTINGS.keys[2], lambda x: SETTINGS.bind_fret_input(2, x))
+    add_key_capture_button(settings_menu, "Fret 4", lambda: SETTINGS.keys[3], lambda x: SETTINGS.bind_fret_input(3, x))
+    add_key_capture_button(settings_menu, "Fret 5", lambda: SETTINGS.keys[4], lambda x: SETTINGS.bind_fret_input(4, x))
     add_key_capture_button(settings_menu, "Strum 1", lambda: SETTINGS.strum_keys[0],
                            lambda x: SETTINGS.strum_keys.__setitem__(0, x))
     add_key_capture_button(settings_menu, "Strum 2", lambda: SETTINGS.strum_keys[1],
@@ -426,6 +438,10 @@ def main():
 
     # load in mp3
     pygame.mixer.init()
+    pygame.joystick.init()
+
+    joysticks = [pygame.joystick.Joystick(x) for x in range(pygame.joystick.get_count())]
+    print(joysticks)
 
     Tree.init(remote_address=parsed_args.address)
 

@@ -32,7 +32,8 @@ class TreeChart:
         self.guitar.medium = get_guitar(c, chparse.MEDIUM)
         self.guitar.easy = get_guitar(c, chparse.EASY)
         self.sync_data = self.compute_sync_track(c.sync_track)
-        print(self.sync_data)
+
+        logger.debug(self.sync_data)
 
     def get_difficulties(self) -> list[chparse.Difficulties]:
         return self.guitar.get_difficulties()

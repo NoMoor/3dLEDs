@@ -5,8 +5,9 @@ import pygame
 
 from const import note_width, note_height, notes_colors, lane_x, note_miss_color, \
     note_hit_color, lane_start_y, lane_end_y, lane_start_to_target_y, note_target_y, \
-    SETTINGS, NOTE_HIT_EVENT, NOTE_MISS_EVENT, hit_buffer, lane_internal_padding, \
+    NOTE_HIT_EVENT, NOTE_MISS_EVENT, hit_buffer, lane_internal_padding, \
     total_ticks_on_highway, TREE_RENDER_EVENT
+from treehero.settings import SETTINGS
 from song import Time
 
 logger = logging.getLogger(__name__)
@@ -34,13 +35,13 @@ class Note(pygame.sprite.Sprite):
         self.last_strum_direction = Strum.NONE
 
     def is_valid_strum(self, keys):
-        logger.debug("Strum keys: up: %s down: %s", keys[SETTINGS.strum_keys[0]], keys[SETTINGS.strum_keys[1]])
-        if keys[SETTINGS.strum_keys[0]] and keys[SETTINGS.strum_keys[1]]:
+        logger.debug("Strum keys: up: %s down: %s", SETTINGS.strum_keys[0].is_pressed(keys), SETTINGS.strum_keys[1].is_pressed(keys))
+        if SETTINGS.strum_keys[0].is_pressed(keys) and SETTINGS.strum_keys[1].is_pressed(keys):
             self.last_strum_direction = Strum.BOTH
             return False
-        elif keys[SETTINGS.strum_keys[0]]:
+        elif SETTINGS.strum_keys[0].is_pressed(keys):
             current_strum = Strum.UP
-        elif keys[SETTINGS.strum_keys[1]]:
+        elif SETTINGS.strum_keys[1].is_pressed(keys):
             current_strum = Strum.DOWN
         else:
             self.last_strum_direction = Strum.NONE
@@ -72,7 +73,7 @@ class Note(pygame.sprite.Sprite):
             self.scored = True
         # If the note can be hit and is in the sweet spot and the key is pressed, mark it as hit.
         elif current_time.ticks in self.get_hit_window(current_time) \
-                and keys[SETTINGS.keys[self.lane_id]] and self.is_valid_strum(keys):
+                and SETTINGS.keys[self.lane_id].is_pressed(keys) and self.is_valid_strum(keys):
             if not self.was_hit:
                 logger.debug(f"Hitt note - i:{self.note_id} y:{self.rect.y}")
                 self.color = pygame.Color(note_hit_color)

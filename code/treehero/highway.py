@@ -3,7 +3,8 @@ from __future__ import annotations
 import pygame
 
 from const import note_width, note_height, notes_colors, note_target_y, lane_x, string_width, lane_height, lane_start_y, \
-    lane_count, lane_internal_padding, lane_start_to_target_y, SETTINGS, FRET_PRESS_EVENT
+    lane_count, lane_internal_padding, lane_start_to_target_y, FRET_PRESS_EVENT
+from treehero.settings import SETTINGS
 from note import Note
 from treehero.bar import Bar
 from treehero.song import Time
@@ -47,7 +48,7 @@ class NoteTarget(pygame.sprite.Sprite):
         self.draw_target()
 
     def update(self, keys, events, current_time: Time, dt):
-        is_pressed = keys[SETTINGS.keys[self.lane_id]]
+        is_pressed = SETTINGS.keys[self.lane_id].is_pressed(keys)
 
         pygame.event.post(pygame.event.Event(FRET_PRESS_EVENT, {"lane_id": self.lane_id, "pressed": is_pressed}))
 

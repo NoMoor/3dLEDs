@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import logging
 import os.path
 
@@ -70,7 +69,6 @@ FRET_PRESS_EVENT = pygame.USEREVENT + 4
 hit_buffer = 8
 
 DATA_FOLDER = os.path.join("treehero", "data")
-SETTINGS_FILE = os.path.join(DATA_FOLDER, "settings.json")
 
 
 def total_ticks_on_highway(resolution: int):
@@ -98,42 +96,6 @@ def lane_x_center(lane_id):
     return lane_x(lane_id) + (note_width // 2)
 
 
-class Settings:
-    """Container for game settings. Eventually, these can be set through a menu maybe."""
-
-    def __init__(self):
-        self.keys = [pygame.K_a, pygame.K_s, pygame.K_d, pygame.K_f, pygame.K_g]
-        self.strum_keys = [pygame.K_UP, pygame.K_DOWN]
-
-    def save(self):
-        if not os.path.exists(DATA_FOLDER):
-            os.makedirs(DATA_FOLDER)
-
-        with open(SETTINGS_FILE, 'w') as outfile:
-            outfile.write(json.dumps(self.__dict__(), sort_keys=True, indent=True))
-        logger.info("bzzz.... bzzz... I totally saved the settings ;)")
-
-    def __dict__(self):
-        return {
-            "keys": self.keys,
-            "strum_keys": self.strum_keys
-        }
-
-    @classmethod
-    def load(cls) -> Settings:
-        s = Settings()
-        if os.path.exists(SETTINGS_FILE):
-            with open(SETTINGS_FILE, 'r') as infile:
-                data_str = "".join(infile.readlines())
-                logger.info("loading settings data: %s", data_str)
-                data = json.loads(data_str)
-
-            s.keys = data["keys"]
-            s.strum_keys = data["strum_keys"]
-
-        return s
-
-
 class State:
     """Container to store things like game score, streak, lives, etc."""
 
@@ -150,5 +112,4 @@ class State:
         self.net_score = self.net_score - 1
 
 
-SETTINGS = Settings.load()
 STATE = State()
