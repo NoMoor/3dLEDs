@@ -5,12 +5,16 @@ import os.path
 from collections import namedtuple
 from typing import Optional
 
+import grpc
 import numpy as np
 import pygame.draw
 from pygame.surface import Surface
 
 from utils.animation import read_coordinates
+from utils.colors import encode_rgb
 from utils.coords import Coord3d
+from network import lights_pb2
+from network import lights_pb2_grpc
 
 light_up_ratio = 2
 
@@ -42,6 +46,7 @@ scale = .25
 Bucket = namedtuple('Bucket', 'lane_num ratio')
 Note = namedtuple('Note', 'lane_num ratio')
 
+
 class Tree:
     """Class representing the 3d tree IRL."""
 
@@ -50,14 +55,14 @@ class Tree:
     target_buckets = 3
 
     @classmethod
-    def get_tree(cls) -> Tree:
+    def get_tree(cls, remote_address="") -> Tree:
         if cls._TREE is None:
             logger.info("Initializing Tree")
-            cls._TREE = Tree()
+            cls._TREE = Tree(remote_address)
 
         return cls._TREE
 
-    def __init__(self):
+    def __init__(self, remote_address):
         self.coords: dict[int, Coord3d] = read_coordinates(tree_coordinates_file)
 
         self.min_x = min(map(lambda c: c.x, self.coords.values()))
@@ -69,6 +74,8 @@ class Tree:
 
         self.lane_assignments: dict[int, Bucket] = self.get_lane_assignments(self.coords)
         self.notes: list[Note] = []
+        self._channel = grpc.insecure_channel(remote_address) if remote_address else None
+        self._stub = lights_pb2_grpc.LightsStub(self._channel) if remote_address else None
 
     def render(self, screen: Surface):
         """Renders all the lights on the tree according to their lane colors."""
@@ -88,28 +95,45 @@ class Tree:
             distance = abs(closest.ratio - b.ratio) * 100
             return sigmoid(light_up_ratio - abs(distance))
 
-        for id_num, coord in self.coords.items():
+        def get_x(c) -> int:
             # Shift the tree to the right to be visible
-            x = ((abs(self.min_x) + coord.x) * scale) + shift_x
-            # In 3d, z is the vertical axis with 0 starting at the bottom.
-            y = ((self.max_z - coord.z) * scale) + shift_y
+            return ((abs(self.min_x) + c.x) * scale) + shift_x
 
+        def get_y(c) -> int:
+            # In 3d, z is the vertical axis with 0 starting at the bottom.
+            return ((self.max_z - c.z) * scale) + shift_y
+
+        pix = {}
+        for id_num, coord in self.coords.items():
             bucket = self.lane_assignments[id_num]
             light_bright = get_brightness(bucket)
 
             if light_bright > pix_brightness_threshold:
                 pix_color = self.get_pix_color(coord, brightness=light_bright)
-                pygame.draw.circle(screen, pix_color, (x, y), 2)
+                pix[id_num] = pix_color
             elif bucket.ratio >= target_ratio:
-                pygame.draw.circle(screen, WHITE, (x, y), 2)
+                pix[id_num] = WHITE
+
+        if self._channel:
+            request = lights_pb2.SetLightsRequest()
+            request.id = 1  # TODO: Maybe set the ticks or something.
+            for led_id, color in pix.items():
+                request.pix.append(lights_pb2.Pix(pix_id=led_id, rgb=encode_rgb(color[0], color[1], color[2])))
+
+            self._stub.SetLights(request)
+
+        # Render locally
+        for led_id, color in pix.items():
+            coord = self.coords[led_id]
+            pygame.draw.circle(screen, color, (get_x(coord), get_y(coord)), 2)
 
         if self.notes:
             logger.debug("Rendering %s notes", len(self.notes))
             self.notes.clear()
 
-    def get_pix_color(self, c: Coord3d, brightness:float=1.0) -> pygame.Color:
+    def get_pix_color(self, c: Coord3d, brightness: float = 1.0) -> pygame.Color:
         """Picks the lane color of the coordinate based on where it falls on the tree."""
-        return pygame.Color(COLORS[self.lane_assignments[c.led_id][0]]).lerp(pygame.Color(0, 0, 0), 1-brightness)
+        return pygame.Color(COLORS[self.lane_assignments[c.led_id][0]]).lerp(pygame.Color(0, 0, 0), 1 - brightness)
 
     def is_left_of(self, a: Coord3d, b: Coord3d, c: Coord3d) -> bool:
         """
@@ -153,3 +177,9 @@ class Tree:
 
     def register_note(self, lane_num, ratio) -> None:
         self.notes.append(Note(lane_num, ratio))
+
+    @classmethod
+    def close(cls):
+        """Perform cleanup for this singleton."""
+        if cls._TREE:
+            cls._TREE._channel.close()

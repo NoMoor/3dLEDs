@@ -1,3 +1,4 @@
+import os
 import time
 from concurrent import futures
 import logging
@@ -5,16 +6,32 @@ import logging
 import grpc
 
 from network import lights_pb2_grpc, lights_pb2
+from utils.animation import read_coordinates
 from utils.colors import decode_rgb
 import tkinter
+
+from utils.coords import Coord3d
 
 TARGET_FPS = 60
 TARGET_REFRESH = 1 / TARGET_FPS
 SLEEP_OVERHEAD = .0003
+X_PADDING = 50
+Y_PADDING = 50
+SCALING = .5
+DOT_SIZE = 10
 
 latest_frame = []
 # The number of frames that have passed without an updated frame.
 blank_frame_count = 0
+
+tree_coordinates_file = os.path.join("treehero", "data", "coordinates.tree")
+
+coords: dict[int, Coord3d] = read_coordinates(tree_coordinates_file)
+
+min_x = min(map(lambda x: x.x, coords.values())) * SCALING
+max_x = max(map(lambda x: x.x, coords.values())) * SCALING
+min_z = min(map(lambda x: x.z, coords.values())) * SCALING
+max_z = max(map(lambda x: x.z, coords.values())) * SCALING
 
 
 class LightsServicer(lights_pb2_grpc.LightsServicer):
@@ -57,22 +74,31 @@ def draw_frame(canvas):
     # If we don't delete everything, rectangles pile up and rendering will grind to a halt.
     canvas.delete("all")
 
+    def get_x(c) -> int:
+        # Shift the tree to the right to be visible
+        return abs(min_x) + (c.x * SCALING) + X_PADDING
+
+    def get_y(c) -> int:
+        # In 3d, z is the vertical axis with 0 starting at the bottom.
+        return max_z - (c.z * SCALING) + Y_PADDING
+
+    scaled_dot_size = DOT_SIZE * SCALING
+
     # Draw the latest frame as a 2-D grid of pixels.
     for p in latest_frame:
         pix_id = p[0]
-        x = pix_id % 20
-        y = pix_id // 20
-        height = 10
-        width = 10
-        padding = 10
+        coord = coords[pix_id]
+        x = get_x(coord)
+        y = get_y(coord)
 
         def _from_rgb(rgb):
             """translates an rgb tuple of int to a tkinter friendly color code."""
             return "#%02x%02x%02x" % rgb
 
+        print(max_z)
         canvas.create_rectangle(
-            padding + (width + padding) * x, padding + (height + padding) * y, (width + padding) * (x + 1),
-            (height + padding) * (y + 1), fill=_from_rgb((p[1], p[2], p[3])))
+            x - scaled_dot_size, y - scaled_dot_size, x + scaled_dot_size, y + scaled_dot_size,
+            fill=_from_rgb((p[1], p[2], p[3])))
 
     latest_frame.clear()
 
@@ -93,7 +119,7 @@ def serve():
 
     # Create a window and canvas to draw the lights.
     root = tkinter.Tk()
-    canvas = tkinter.Canvas(root)
+    canvas = tkinter.Canvas(root, width=max_x - min_x + (X_PADDING * 2), height=max_z - min_z + (Y_PADDING * 2))
     canvas.pack()
     canvas.update_idletasks()
     canvas.update()

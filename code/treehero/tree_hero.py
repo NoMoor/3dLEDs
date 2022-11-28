@@ -176,7 +176,7 @@ def play_song(screen: Surface, song: Song, difficulty=chparse.EXPERT):
                 STATE.note_miss()
 
             if e.type == TREE_RENDER_EVENT and parsed_args.render_tree:
-                Tree.get_tree().register_note(e.lane_id, e.loc)
+                Tree.get_tree(remote_address=parsed_args.address).register_note(e.lane_id, e.loc)
 
             if e.type == pygame.QUIT:
                 pygame.mixer.music.stop()
@@ -208,7 +208,7 @@ def play_song(screen: Surface, song: Song, difficulty=chparse.EXPERT):
                 # Render Fake Tree
 
             if parsed_args.render_tree:
-                Tree.get_tree().render(surface)
+                Tree.get_tree(remote_address=parsed_args.address).render(surface)
 
             # Render game components
             render_header(screen)
@@ -413,6 +413,7 @@ def main():
     parser.add_argument('-x', '--difficulty', type=str, default="Expert", help='The difficulty to play')
     parser.add_argument('-d', '--debug', action="store_true", help='If debug is enabled.')
     parser.add_argument('-t', '--render-tree', action="store_true", help='If the tree should be rendered.')
+    parser.add_argument('-a', '--address', type=str, help='The host of the remote server to render to. The test server runs at "localhost:50051"')
 
     global parsed_args
     parsed_args = parser.parse_args()
@@ -447,4 +448,5 @@ if __name__ == '__main__':
         sys.path.insert(1, os.path.join(sys.path[0], '..'))
         main()
     except KeyboardInterrupt:
+        Tree.close()
         logger.info("Caught interrupt. Exiting game.")
