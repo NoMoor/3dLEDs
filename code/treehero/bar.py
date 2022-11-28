@@ -39,6 +39,6 @@ class Bar(Sprite):
         self.rect.x = lane_x(0) - lane_outside_padding - int(ticks_to_target * pix_per_tick_x)
         self.rect.y = note_target_y - (pix_per_tick_y * ticks_to_target) + (note_height // 2) - (Bar.height // 2)
 
-        if ticks_to_target < 0:
+        if ticks_to_target < - current_time.resolution // 12:
             self.kill()
 
