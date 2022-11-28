@@ -26,13 +26,19 @@ logger = logging.getLogger(__name__)
 
 # Colors used to create 'lanes' on the tree.
 RED = (255, 0, 0)
+RED_PRESSED = (255, 100, 0)
 GREEN = (0, 255, 0)
+GREEN_PRESSED = (0, 255, 0)
 BLUE = (0, 0, 255)
+BLUE_PRESSED = (0, 0, 255)
 YELLOW = (255, 255, 0)
+YELLOW_PRESSED = (255, 255, 0)
 ORANGE = (255, 160, 0)
+ORANGE_PRESSED = (255, 160, 0)
 COLORS = [GREEN, RED, YELLOW, BLUE, ORANGE]
+COLORS_PRESSED = [GREEN_PRESSED, RED_PRESSED, YELLOW_PRESSED, BLUE_PRESSED, ORANGE_PRESSED]
 
-WHITE = (255, 255, 255)
+GREY = (100, 100, 100)
 
 # The relative file containing the tree coordinates.
 tree_coordinates_file = os.path.join("treehero", "data", "coordinates.tree")
@@ -55,11 +61,15 @@ class Tree:
     target_buckets = 3
 
     @classmethod
-    def get_tree(cls, remote_address="") -> Tree:
+    def init(cls, remote_address="") -> Tree:
         if cls._TREE is None:
             logger.info("Initializing Tree")
             cls._TREE = Tree(remote_address)
 
+        return cls._TREE
+
+    @classmethod
+    def get_tree(cls) -> Tree:
         return cls._TREE
 
     def __init__(self, remote_address):
@@ -73,7 +83,8 @@ class Tree:
         self.max_z_coord = max(self.coords.values(), key=lambda c: c.z).with_x(0).with_z(self.max_z + 200)
 
         self.lane_assignments: dict[int, Bucket] = self.get_lane_assignments(self.coords)
-        self.notes: list[Note] = []
+        self._notes: list[Note] = []
+        self._fret_pressed: set[int] = set()
         self._channel = grpc.insecure_channel(remote_address) if remote_address else None
         self._stub = lights_pb2_grpc.LightsStub(self._channel) if remote_address else None
 
@@ -86,7 +97,7 @@ class Tree:
 
         def get_brightness(b: Bucket) -> float:
             # Get the closest note
-            lane_notes = [n for n in self.notes if n.lane_num == b.lane_num]
+            lane_notes = [n for n in self._notes if n.lane_num == b.lane_num]
 
             if not lane_notes:
                 return 0
@@ -112,7 +123,7 @@ class Tree:
                 pix_color = self.get_pix_color(coord, brightness=light_bright)
                 pix[id_num] = pix_color
             elif bucket.ratio >= target_ratio:
-                pix[id_num] = WHITE
+                pix[id_num] = COLORS_PRESSED[bucket.lane_num] if bucket.lane_num in self._fret_pressed else GREY
 
         if self._channel:
             request = lights_pb2.SetLightsRequest()
@@ -127,9 +138,8 @@ class Tree:
             coord = self.coords[led_id]
             pygame.draw.circle(screen, color, (get_x(coord), get_y(coord)), 2)
 
-        if self.notes:
-            logger.debug("Rendering %s notes", len(self.notes))
-            self.notes.clear()
+        self._notes.clear()
+        self._fret_pressed.clear()
 
     def get_pix_color(self, c: Coord3d, brightness: float = 1.0) -> pygame.Color:
         """Picks the lane color of the coordinate based on where it falls on the tree."""
@@ -176,7 +186,11 @@ class Tree:
         return assignments
 
     def register_note(self, lane_num, ratio) -> None:
-        self.notes.append(Note(lane_num, ratio))
+        self._notes.append(Note(lane_num, ratio))
+
+    def register_fret_press(self, lane_num, pressed) -> None:
+        if pressed:
+            self._fret_pressed.add(lane_num)
 
     @classmethod
     def close(cls):

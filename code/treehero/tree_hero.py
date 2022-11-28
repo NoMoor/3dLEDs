@@ -19,7 +19,8 @@ from pygame.font import Font
 from pygame_menu import Menu, Theme
 
 from const import game_title, title_color, frame_width, header_height, score_color, STATE, total_ticks_on_highway, \
-    get_visual_hitbox, fps_color, fps, NOTE_HIT_EVENT, NOTE_MISS_EVENT, frame_height, SETTINGS, TREE_RENDER_EVENT
+    get_visual_hitbox, fps_color, fps, NOTE_HIT_EVENT, NOTE_MISS_EVENT, frame_height, SETTINGS, TREE_RENDER_EVENT, \
+    FRET_PRESS_EVENT
 from highway import Highway
 # Configure logging
 from song import Song, get_all_songs, make_song
@@ -175,8 +176,11 @@ def play_song(screen: Surface, song: Song, difficulty=chparse.EXPERT):
             if e.type == NOTE_MISS_EVENT:
                 STATE.note_miss()
 
-            if e.type == TREE_RENDER_EVENT and parsed_args.render_tree:
-                Tree.get_tree(remote_address=parsed_args.address).register_note(e.lane_id, e.loc)
+            if e.type == TREE_RENDER_EVENT and Tree.get_tree():
+                Tree.get_tree().register_note(e.lane_id, e.loc)
+
+            if e.type == FRET_PRESS_EVENT and Tree.get_tree():
+                Tree.get_tree().register_fret_press(e.lane_id, e.pressed)
 
             if e.type == pygame.QUIT:
                 pygame.mixer.music.stop()
@@ -205,10 +209,9 @@ def play_song(screen: Surface, song: Song, difficulty=chparse.EXPERT):
                     tracker_start = time.perf_counter()
                     frame_num = 0
 
-                # Render Fake Tree
-
-            if parsed_args.render_tree:
-                Tree.get_tree(remote_address=parsed_args.address).render(surface)
+            # Fake Tree
+            if Tree.get_tree():
+                Tree.get_tree().render(surface)
 
             # Render game components
             render_header(screen)
@@ -423,6 +426,8 @@ def main():
 
     # load in mp3
     pygame.mixer.init()
+
+    Tree.init(remote_address=parsed_args.address)
 
     global surface
 

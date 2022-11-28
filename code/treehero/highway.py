@@ -3,9 +3,10 @@ from __future__ import annotations
 import pygame
 
 from const import note_width, note_height, notes_colors, note_target_y, lane_x, string_width, lane_height, lane_start_y, \
-    lane_count, lane_internal_padding, lane_start_to_target_y
+    lane_count, lane_internal_padding, lane_start_to_target_y, SETTINGS, FRET_PRESS_EVENT
 from note import Note
 from treehero.bar import Bar
+from treehero.song import Time
 
 
 class Highway(pygame.sprite.Group):
@@ -36,12 +37,28 @@ class NoteTarget(pygame.sprite.Sprite):
     def __init__(self, lane_id, *args):
         super().__init__(*args)
         # Darken the target a little.
-        self.color = pygame.Color(notes_colors[lane_id]).lerp((0, 0, 0), .3)
+        self.lane_id = lane_id
+        self.pressed_color = pygame.Color(notes_colors[lane_id]).lerp((255, 255, 255), .3)
+        self.not_pressed_color = pygame.Color(notes_colors[lane_id]).lerp((0, 0, 0), .3)
 
         self.image = pygame.Surface((note_width, note_height), pygame.SRCALPHA)
         self.rect = self.image.get_rect(center=(lane_x(lane_id) + note_width // 2, note_target_y))
         self.image.fill(TRANSPARENT)
-        pygame.draw.circle(self.image, self.color, (note_width // 2, note_width // 2), note_width // 2, width=5)
+        self.draw_target()
+
+    def update(self, keys, events, current_time: Time, dt):
+        is_pressed = keys[SETTINGS.keys[self.lane_id]]
+
+        pygame.event.post(pygame.event.Event(FRET_PRESS_EVENT, {"lane_id": self.lane_id, "pressed": is_pressed}))
+
+        self.image.fill(TRANSPARENT)
+        self.draw_target(pressed=is_pressed)
+
+    def draw_target(self, pressed=False):
+        if pressed:
+            pygame.draw.circle(self.image, self.pressed_color, (note_width // 2, note_width // 2), note_width // 2)
+        else:
+            pygame.draw.circle(self.image, self.not_pressed_color, (note_width // 2, note_width // 2), note_width // 2, width=5)
 
 
 class LaneCenter(pygame.sprite.Sprite):
@@ -56,7 +73,6 @@ class LaneCenter(pygame.sprite.Sprite):
         string_bottom_x = lane_x(lane_id) + (note_width // 2) - (string_width // 2)
         width = abs(lane_start_to_target_x) + string_width
 
-        print(f"lstx {lane_start_to_target_x} w {width} lane: {lane_id}")
         self.image = pygame.Surface((width, lane_height), pygame.SRCALPHA)
         self.rect = self.image.get_rect()
         self.rect.move_ip(string_bottom_x if lane_start_to_target_x < 0 else string_bottom_x - lane_start_to_target_x,
