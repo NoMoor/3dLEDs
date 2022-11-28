@@ -110,9 +110,18 @@ def load_music(song_folder: str) -> None:
     files = list(itertools.chain.from_iterable(
         [glob.glob(os.path.join('treehero', 'songs', song_folder, t)) for t in ('*.ogg', '*.mp3')]))
 
-    assert len(files) == 1, f"Expected to find exactly one music file but found {files}"
+    file = None
 
-    pygame.mixer.music.load(files[0])
+    if len(files) > 1:
+        print(files)
+        if "guitar.ogg" in files:
+            file = filter(lambda f: f == "guitar.ogg", files)
+        else:
+            assert len(files) == 1, f"Expected to find exactly one music file but found {files}"
+    else:
+        file = files[0]
+
+    pygame.mixer.music.load(file)
 
 
 def play_song(screen: Surface, song: Song, difficulty=chparse.EXPERT):
@@ -137,13 +146,18 @@ def play_song(screen: Surface, song: Song, difficulty=chparse.EXPERT):
 
     pygame.mixer.music.play()
     frame_num = 0
-    tracker_start = time.perf_counter()
+    last_bar = -chart.resolution
 
     while playing_song:
         # Subtract the offset from the play time. Usually, we would start the playback at the offset position
         # but not all codecs support this. Instead, play the whole song and remove the offset from the position.
         current_time_ms = pygame.mixer.music.get_pos() - chart_offset_ms
         current_time = chart.to_time(current_time_ms)
+
+        while current_time.ticks + lead_time_ticks >= last_bar + chart.resolution:
+            last_bar = last_bar + chart.resolution
+            highway.add_bar(bar_ticks=last_bar)
+            logger.debug("Spawn bar:[%s]", int(current_time.ticks))
 
         # Load in the notes that should be visible
         while note_list and note_list[0].time < current_time.ticks + lead_time_ticks:
@@ -184,7 +198,7 @@ def play_song(screen: Surface, song: Song, difficulty=chparse.EXPERT):
                 pygame.draw.rect(screen, (50, 100, 50), get_visual_hitbox(current_time.resolution))
 
                 # Render FPS
-                fps_surface = score_font.render(f'FPS: {frame_num / (time.perf_counter() - tracker_start):05.1f}',
+                fps_surface = score_font.render(f'FPS: {clock.get_fps()}',
                                                 False, fps_color)
                 screen.blit(fps_surface, (frame_width - 110, 0))
                 if not frame_num % 60:

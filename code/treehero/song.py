@@ -44,18 +44,24 @@ class TreeChart:
         """Computes the sync track data to correlate ticks and ms for easier lookup later."""
         sync_frames = []
         logger.info(self.name)
-        for i in range(len(sync_track)):
-            curr = sync_track[i]
-            prev = sync_track[i - 1] if i - 1 > 0 else sync_track[i]
+        curr, prev = None, None
 
-            if curr.kind != BPM:
+        for i in range(len(sync_track)):
+            if sync_track[i].kind != BPM:
                 continue
 
-            delta_ticks = curr.time - prev.time
-            delta_ms = self.ticks_to_ms(ticks=delta_ticks, milli_bpm=prev.value)
+            prev = curr
+            curr = sync_track[i]
 
-            prev_ms = sync_frames[-1].time_ms if sync_frames else 0
-            sync_frames.append(SyncFrame(prev_ms + delta_ms, curr.time, curr.value))
+            if prev:
+                delta_ticks = curr.time - prev.time
+                delta_ms = self.ticks_to_ms(ticks=delta_ticks, milli_bpm=prev.value)
+
+                prev_ms = sync_frames[-1].time_ms if sync_frames else 0
+                sync_frames.append(SyncFrame(prev_ms + delta_ms, curr.time, curr.value))
+
+        if not prev and curr:
+            sync_frames.append(SyncFrame(0, curr.time, curr.value))
 
         return sync_frames
 

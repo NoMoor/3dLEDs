@@ -68,7 +68,7 @@ class Note(pygame.sprite.Sprite):
             if not self.scored:
                 self.color = pygame.Color(note_miss_color)
                 pygame.event.post(pygame.event.Event(NOTE_MISS_EVENT))
-                logger.info(f"Miss note - i:%s t:%s", self.ticks, current_time.ticks)
+                logger.debug(f"Miss note - i:%s t:%s", self.ticks, current_time.ticks)
             self.scored = True
         # If the note can be hit and is in the sweet spot and the key is pressed, mark it as hit.
         elif current_time.ticks in self.get_hit_window(current_time) \

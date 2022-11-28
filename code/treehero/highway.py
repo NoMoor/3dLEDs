@@ -5,6 +5,7 @@ import pygame
 from const import note_width, note_height, notes_colors, note_target_y, lane_x, string_width, lane_height, lane_start_y, \
     lane_count, lane_internal_padding, lane_start_to_target_y
 from note import Note
+from treehero.bar import Bar
 
 
 class Highway(pygame.sprite.Group):
@@ -12,11 +13,12 @@ class Highway(pygame.sprite.Group):
 
     def __init__(self, *args):
         super().__init__(*args)
-        self.notes = []
 
     def add_note(self, lane_id, note_id, note_ticks):
-        new_note = Note(note_id, note_ticks, lane_id, self)
-        self.notes.append(new_note)
+        Note(note_id, note_ticks, lane_id, self)
+
+    def add_bar(self, bar_ticks):
+        Bar(bar_ticks, self)
 
     def setup(self) -> Highway:
         [LaneCenter(i, self) for i in range(lane_count)]

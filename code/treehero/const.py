@@ -17,7 +17,7 @@ note_width = 32
 note_height = 20
 string_width = 3
 lane_width = note_width
-lane_height = 800
+lane_height = 500
 lane_target_to_end = 100
 lane_start_to_target_y = lane_height - lane_target_to_end
 
