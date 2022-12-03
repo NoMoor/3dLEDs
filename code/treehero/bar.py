@@ -27,8 +27,8 @@ class Bar(Sprite):
         ticks_to_target = self.bar_ticks - current_time.ticks
         total_highway_ticks = total_ticks_on_highway(current_time.resolution)
 
-        ratio = 1 - (ticks_to_target / total_highway_ticks)
-        self.image = pygame.transform.scale(self.og_image, (Bar.width * ratio, max(1, Bar.height * ratio)))
+        ratio = min(1.0, max(0.0, 1 - (ticks_to_target / total_highway_ticks)))
+        self.image = pygame.transform.scale(self.og_image, (int(Bar.width * ratio), int(Bar.height * ratio)))
 
         pix_per_tick_y = lane_start_to_target_y / total_highway_ticks
 

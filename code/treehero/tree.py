@@ -126,6 +126,7 @@ class Tree:
                 pix[id_num] = COLORS_PRESSED[bucket.lane_num] if bucket.lane_num in self._fret_pressed else GREY
 
         if self._channel:
+            # Send a request containing only the illuminated pixels
             request = lights_pb2.SetLightsRequest()
             request.id = 1  # TODO: Maybe set the ticks or something.
             for led_id, color in pix.items():
