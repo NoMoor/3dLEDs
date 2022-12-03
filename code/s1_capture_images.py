@@ -7,11 +7,13 @@
 # Code: https://github.com/jgarff/rpi_ws281x/blob/master/python/neopixel.py
 
 import time
-from rpi_ws281x import *
 import argparse
 import os
 import sys
 import cv2
+
+import board
+import neopixel
 
 # LED strip configuration:
 LED_COUNT = 500  # Number of LED pixels.
@@ -23,35 +25,38 @@ LED_BRIGHTNESS = 40  # Set to 0 for darkest and 255 for brightest
 LED_INVERT = False  # True to invert the signal (when using NPN transistor level shift)
 LED_CHANNEL = 0  # set to '1' for GPIOs 13, 19, 41, 45 or 53
 
-LED_OFF = Color(0, 0, 0)
-LED_WHITE = Color(255, 255, 255)
+LED_OFF = (0, 0, 0)
+LED_WHITE = (255, 255, 255)
+
 
 # Define functions which animate LEDs in various ways.
 def fill(strip, start=None, end=None, color=LED_OFF):
     s = start if start else 0
     e = end if end else strip.numPixels()
     for i in range(s, e):
-        strip.setPixelColor(i, color)
+        strip[i] = color
     strip.show()
+
 
 def color_wipe(strip, color, wait_ms=1, reverse=False):
     """Wipe color across display a pixel at a time."""
     for i in range(strip.numPixels()):
         index = strip.numPixels() - i - 1 if reverse else i
-        strip.setPixelColor(i, color)
+        strip[i] = color
         strip.show()
         time.sleep(wait_ms / 1000.0)
+
 
 def wheel(pos):
     """Generate rainbow colors across 0-255 positions."""
     if pos < 85:
-        return Color(pos * 3, 255 - pos * 3, 0)
+        return (pos * 3, 255 - pos * 3, 0)
     elif pos < 170:
         pos -= 85
-        return Color(255 - pos * 3, 0, pos * 3)
+        return (255 - pos * 3, 0, pos * 3)
     else:
         pos -= 170
-        return Color(0, pos * 3, 255 - pos * 3)
+        return (0, pos * 3, 255 - pos * 3)
 
 
 def one_by_one(strip, cam, folder="captures", angle=0, wait_ms=500, dry_run=False, start=0):
@@ -59,7 +64,7 @@ def one_by_one(strip, cam, folder="captures", angle=0, wait_ms=500, dry_run=Fals
     fill(strip)
 
     for i in range(start, strip.numPixels()):
-        strip.setPixelColor(i, LED_WHITE)
+        strip[i] = LED_WHITE
         strip.show()
         time.sleep(wait_ms / 1000.0)
 
@@ -67,7 +72,7 @@ def one_by_one(strip, cam, folder="captures", angle=0, wait_ms=500, dry_run=Fals
         _capture_image(cam, filename)
 
         time.sleep(0.1)
-        strip.setPixelColor(i, LED_OFF)
+        strip[i] = LED_OFF
         strip.show()
         time.sleep(.05)
 
@@ -106,10 +111,10 @@ def _capture_reference(cam, folder, angle=None):
 
 def _cam(focus=0):
     cam = cv2.VideoCapture(0, cv2.CAP_V4L2)
-    cam.set(cv2.CAP_PROP_AUTOFOCUS, 0) # turn off autofocus
+    cam.set(cv2.CAP_PROP_AUTOFOCUS, 0)  # turn off autofocus
     cam.set(cv2.CAP_PROP_FOCUS, focus)
-    cam.set(3, 1920) # Set Width
-    cam.set(4, 1080) # Set Height
+    cam.set(3, 1920)  # Set Width
+    cam.set(4, 1080)  # Set Height
     return cam
 
 
@@ -142,12 +147,8 @@ def main():
     parser.add_argument('-l', '--light', action='store_true', help='The light the tree for testing')
     args = parser.parse_args()
 
-    # Create NeoPixel object with appropriate configuration.
-    strip = Adafruit_NeoPixel(args.end_index, LED_PIN, LED_FREQ_HZ, LED_DMA, LED_INVERT, LED_BRIGHTNESS, LED_CHANNEL)
-    # Initialize the library (must be called once before other functions).
-    strip.begin()
-    # Turn off all LEDs
-    strip.show()
+    strip = neopixel.NeoPixel(LED_PIN, LED_COUNT, brightness=LED_BRIGHTNESS, auto_write=False)
+    strip.show()  # Turn off all the pixels
 
     print('Press Ctrl-C to quit.')
     if args.focus_test:
@@ -157,7 +158,7 @@ def main():
 
     if args.light:
         print('Lighting the Tree')
-        fill(strip, color=Color(0,50,0))
+        fill(strip, color=(0, 50, 0))
         sys.exit(0)
 
     if not args.persist:
@@ -170,14 +171,14 @@ def main():
 
         angles = [0, 45, 90, 135, 180, 225, 270, 315]
         cam = _cam()
-#         time.sleep(5) # Wait 10 seconds to make sure the camera is ready
+        #         time.sleep(5) # Wait 10 seconds to make sure the camera is ready
 
         for a in angles:
             # Turn on reference pixels
-            strip.setPixelColor(0, LED_WHITE)
-            strip.setPixelColor(20, Color(255, 0, 0))
-            strip.setPixelColor(40, Color(0, 255, 0))
-            strip.setPixelColor(60, Color(0, 0, 255))
+            strip[0] = LED_WHITE
+            strip[20] = (255, 0, 0)
+            strip[40] = (0, 255, 0)
+            strip[60] = (0, 0, 255)
             strip.show()
             input(f"Press Enter to capture lights-on image {a} degrees.")
             _capture_reference(cam, folder, angle=a)

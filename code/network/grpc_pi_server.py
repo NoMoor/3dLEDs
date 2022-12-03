@@ -10,6 +10,7 @@ import neopixel
 
 # LED strip configuration:
 from utils.colors import Color, decode_rgb
+
 2
 LED_COUNT = 500  # Number of LED pixels.
 LED_PIN = board.D18  # GPIO pin connected to the pixels (18 uses PWM!).
@@ -22,14 +23,14 @@ LED_CHANNEL = 0  # set to '1' for GPIOs 13, 19, 41, 45 or 53
 LED_OFF = Color(0, 0, 0)
 LED_WHITE = Color(255, 255, 255)
 
+
 class LightsServicer(lights_pb2_grpc.LightsServicer):
     """Implements functionality of lights service."""
 
     def __init__(self):
         # TODO: Create a stub for testing?
-        strip = neopixel.NeoPixel(LED_PIN, LED_COUNT, brightness=LED_BRIGHTNESS, auto_write=False)
-        strip.begin()  # Initialize the pixels
-        strip.show()  # Turn off all the pixels
+        self.strip = neopixel.NeoPixel(LED_PIN, LED_COUNT, brightness=LED_BRIGHTNESS, auto_write=False)
+        self.strip.show()  # Turn off all the pixels
 
     def SetLights(self, request, context):
         print(request)
@@ -40,9 +41,8 @@ class LightsServicer(lights_pb2_grpc.LightsServicer):
     def displayLights(self, pix):
         for idx, p in enumerate(pix):
             r, g, b = decode_rgb(p.rgb)
-            strip.setPixelColor(idx, Color(int(g), int(r), int(b)))
-        strip.show()
-
+            self.strip.setPixelColor(idx, (int(g), int(r), int(b)))
+        self.strip.show()
 
 
 def serve():
