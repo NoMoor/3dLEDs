@@ -184,9 +184,11 @@ def main():
             strip[40] = (0, 255, 0)
             strip[60] = (0, 0, 255)
             strip.show()
-            input(f"Press Enter to capture lights-on image {a} degrees.")
-            _capture_reference(cam, folder, angle=a)
-            fill(strip)
+
+            if not args.dry_run:
+                input(f"Press Enter to capture lights-on image {a} degrees.")
+                _capture_reference(cam, folder, angle=a)
+                fill(strip)
 
             input(f"Press Enter to capture tree at {a} degrees.")
             one_by_one(strip, cam, folder=folder, angle=a, dry_run=args.dry_run, start=args.start_index)
