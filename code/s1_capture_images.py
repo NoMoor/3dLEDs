@@ -32,7 +32,7 @@ LED_WHITE = (255, 255, 255)
 # Define functions which animate LEDs in various ways.
 def fill(strip, start=None, end=None, color=LED_OFF):
     s = start if start else 0
-    e = end if end else strip.numPixels()
+    e = end if end else strip.n
     for i in range(s, e):
         strip[i] = color
     strip.show()
@@ -40,8 +40,8 @@ def fill(strip, start=None, end=None, color=LED_OFF):
 
 def color_wipe(strip, color, wait_ms=1, reverse=False):
     """Wipe color across display a pixel at a time."""
-    for i in range(strip.numPixels()):
-        index = strip.numPixels() - i - 1 if reverse else i
+    for i in range(strip.n):
+        index = strip.n - i - 1 if reverse else i
         strip[i] = color
         strip.show()
         time.sleep(wait_ms / 1000.0)
@@ -63,13 +63,14 @@ def one_by_one(strip, cam, folder="captures", angle=0, wait_ms=500, dry_run=Fals
     """Lights up the strand one pixel at a time."""
     fill(strip)
 
-    for i in range(start, strip.numPixels()):
+    for i in range(start, strip.n):
         strip[i] = LED_WHITE
         strip.show()
         time.sleep(wait_ms / 1000.0)
 
-        filename = os.path.join(folder, f"led{i:03}_angle{angle:03}.jpg")
-        _capture_image(cam, filename)
+        if not dry_run:
+            filename = os.path.join(folder, f"led{i:03}_angle{angle:03}.jpg")
+            _capture_image(cam, filename)
 
         time.sleep(0.1)
         strip[i] = LED_OFF
@@ -78,7 +79,10 @@ def one_by_one(strip, cam, folder="captures", angle=0, wait_ms=500, dry_run=Fals
 
     fill(strip, color=LED_WHITE)
     time.sleep(wait_ms / 1000.0)
-    _capture_image(cam, os.path.join(folder, f"leds_angle{angle:03}.jpg"))
+
+    if not dry_run:
+        _capture_image(cam, os.path.join(folder, f"leds_angle{angle:03}.jpg"))
+
     fill(strip)
     time.sleep(0.1)
 
