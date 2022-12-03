@@ -35,6 +35,7 @@ def fill(strip, start=None, end=None, color=LED_OFF):
     e = end if end else strip.n
     for i in range(s, e):
         strip[i] = color
+
     strip.show()
 
 
@@ -72,7 +73,6 @@ def one_by_one(strip, cam, folder="captures", angle=0, wait_ms=500, dry_run=Fals
             filename = os.path.join(folder, f"led{i:03}_angle{angle:03}.jpg")
             _capture_image(cam, filename)
 
-        time.sleep(0.1)
         strip[i] = LED_OFF
         strip.show()
         time.sleep(.05)
@@ -84,7 +84,7 @@ def one_by_one(strip, cam, folder="captures", angle=0, wait_ms=500, dry_run=Fals
         _capture_image(cam, os.path.join(folder, f"leds_angle{angle:03}.jpg"))
 
     fill(strip)
-    time.sleep(0.1)
+    time.sleep(wait_ms / 1000.0)
 
 
 def _capture_image(cam, filename):
