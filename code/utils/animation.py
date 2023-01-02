@@ -117,6 +117,76 @@ def read_coordinates(file_name) -> dict[int, Coord3d]:
     return coordinates
 
 
+def write_coordinates(file_name: str, coords: dict[int, Coord3d], normalize=False, center_invert=True) -> None:
+    if normalize:
+        normalize_coordinates(coords, center_invert=center_invert)
+
+    with open(file_name, 'w') as output_file:
+        csvwriter = csv.writer(output_file)
+        # Writes x/y/z to file as csv
+        for k in sorted(coords.keys()):
+            csvwriter.writerow(coords[k][1:])
+    print(f"Results written to {os.path.abspath(file_name)}")
+
+def normalize_coordinates(coordinates, center_invert=True, with_log=True):
+    """Normalizes the coordinates into GIFT format."""
+    centered = [normalize_coord_to_center(x) for x in coordinates.values()] if center_invert else list(coordinates.values())
+    min_x = min(map(lambda c: c.x, centered))
+    max_x = max(map(lambda c: c.x, centered))
+    min_y = min(map(lambda c: c.y, centered))
+    max_y = max(map(lambda c: c.y, centered))
+    min_z = min(map(lambda c: c.z, centered))
+    max_z = max(map(lambda c: c.z, centered))
+
+    if with_log:
+        print(f"Normalizing to X in [{min_x}, {max_x}] / Y in [{min_y}, {max_y}] / Z in [{min_z}, {max_z}]")
+
+    # Invert the z axis and normalize so that the lowest pixel is 0.
+    inverted = [Coord3d(x.led_id, x.x, x.y, max_z - x.z) for x in centered] if center_invert else [Coord3d(x.led_id, x.x, x.y, x.z) for x in centered]
+
+    min_z = min(map(lambda c: c.z, inverted))
+    max_z = max(map(lambda c: c.z, inverted))
+
+    if with_log:
+        print(f"Normalized to Z in [{min_z}, {max_z}]")
+
+    # Scale so that everything is relative to the largest x/y offset
+
+    scaling_factor = max(map(abs, [min_x, max_x, min_y, max_y]))
+    scaled_coordinate = [Coord3d(c.led_id, c.x / scaling_factor, c.y / scaling_factor, c.z / scaling_factor) for c in
+                         inverted]
+
+    min_x = min(map(lambda c: c.x, scaled_coordinate))
+    max_x = max(map(lambda c: c.x, scaled_coordinate))
+    min_y = min(map(lambda c: c.y, scaled_coordinate))
+    max_y = max(map(lambda c: c.y, scaled_coordinate))
+    min_z = min(map(lambda c: c.z, scaled_coordinate))
+    max_z = max(map(lambda c: c.z, scaled_coordinate))
+
+    if with_log:
+        print(
+            f"Scaled by {scaling_factor} to X in [{min_x}, {max_x}] / Y in [{min_y}, {max_y}] / Z "
+            f"in [{min_z}, {max_z}]")
+
+    # Update all the values in the coordinate map.
+    for updated_coordinate in scaled_coordinate:
+        coordinates[updated_coordinate.led_id] = updated_coordinate
+
+def normalize_to_center(v):
+    """
+    Shifts the origin from the corner to the center. This is needed to rotate the coordinate plane about the center.
+    """
+    return [v[0] - (IMAGE_WIDTH / 2) + 5, v[1] - (IMAGE_WIDTH / 2) - 5, v[2]]
+
+
+def normalize_coord_to_center(coord):
+    """
+    Shifts the origin from the corner to the center. This is needed to rotate the coordinate plane about the center.
+    """
+    centered = normalize_to_center([coord.x, coord.y, coord.z])
+    return Coord3d(coord.led_id, centered[0], centered[1], centered[2])
+
+
 # Define functions which animate LEDs in various ways.
 def fill(strip, color=LED_OFF):
     """Sets all the lights to a given color"""

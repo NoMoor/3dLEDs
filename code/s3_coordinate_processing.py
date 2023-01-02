@@ -3,6 +3,7 @@ import csv
 import os
 import sys
 
+from utils.animation import write_coordinates, normalize_coordinates, normalize_to_center
 from utils.visualize import draw, draw_distance_distribution
 from utils.coords import Coord3d, Coord2d
 from utils import continuation as cont
@@ -54,12 +55,7 @@ def main():
 
     # Write the output to file
     output_file_name = os.path.join(args.output_folder, f'{datetime.now().strftime("%Y%m%d_%H%M")}.csv')
-    with open(output_file_name, 'w') as output_file:
-        csvwriter = csv.writer(output_file)
-        # Writes x/y/z to file as csv
-        for k in sorted(coordinates.keys()):
-            csvwriter.writerow(coordinates[k][1:])
-    print(f"Results written to {os.path.abspath(output_file_name)}")
+    write_coordinates(output_file_name, coordinates)
 
     cont.write_continue_file(twod_coordinates_file=input_file, threed_coordinates_file=output_file_name)
 
@@ -107,50 +103,6 @@ def extract_z(shots):
 
     return s.y + shift
 
-
-def normalize_coordinates(coordinates, with_log=False):
-    """Normalizes the coordinates into GIFT format."""
-    centered = [normalize_coord_to_center(x) for x in coordinates.values()]
-    min_x = min(map(lambda c: c.x, centered))
-    max_x = max(map(lambda c: c.x, centered))
-    min_y = min(map(lambda c: c.y, centered))
-    max_y = max(map(lambda c: c.y, centered))
-    min_z = min(map(lambda c: c.z, centered))
-    max_z = max(map(lambda c: c.z, centered))
-
-    if with_log:
-        print(f"Normalizing to X in [{min_x}, {max_x}] / Y in [{min_y}, {max_y}] / Z in [{min_z}, {max_z}]")
-
-    # Invert the z axis and normalize so that the lowest pixel is 0.
-    inverted = [Coord3d(x.led_id, x.x, x.y, max_z - x.z) for x in centered]
-
-    min_z = min(map(lambda c: c.z, inverted))
-    max_z = max(map(lambda c: c.z, inverted))
-
-    if with_log:
-        print(f"Normalized to Z in [{min_z}, {max_z}]")
-
-    # Scale so that everything is relative to the largest x/y offset
-
-    scaling_factor = max([min_x, max_x, min_y, max_y], key=abs)
-    scaled_coordinate = [Coord3d(c.led_id, c.x / scaling_factor, c.y / scaling_factor, c.z / scaling_factor) for c in
-                         inverted]
-
-    min_x = min(map(lambda c: c.x, scaled_coordinate))
-    max_x = max(map(lambda c: c.x, scaled_coordinate))
-    min_y = min(map(lambda c: c.y, scaled_coordinate))
-    max_y = max(map(lambda c: c.y, scaled_coordinate))
-    min_z = min(map(lambda c: c.z, scaled_coordinate))
-    max_z = max(map(lambda c: c.z, scaled_coordinate))
-
-    if with_log:
-        print(
-            f"Scaled by {scaling_factor} to X in [{min_x}, {max_x}] / Y in [{min_y}, {max_y}] / Z "
-            f"in [{min_z}, {max_z}]")
-
-    # Update all the values in the coordinate map.
-    for updated_coordinate in scaled_coordinate:
-        coordinates[updated_coordinate.led_id] = updated_coordinate
 
 
 def invalidate_outliers(coordinates):
@@ -352,7 +304,7 @@ def get_next_neighbor_id(coordinates, led_id):
     return led_id + next_offset
 
 
-def rotate(coord, angle):
+def rotate(coord, angle) -> Coord3d:
     r = Rot.from_rotvec(angle * np.array([0, 0, 1]), degrees=True)
 
     # Rotate the coordinates 45 degrees to match the angle the images were taken.
@@ -360,21 +312,6 @@ def rotate(coord, angle):
     v = r.apply(v).tolist()
     v = denormalize_from_center(v)
     return Coord3d(coord.led_id, int(v[0]), int(v[1]), int(v[2]))
-
-
-def normalize_to_center(v):
-    """
-    Shifts the origin from the corner to the center. This is needed to rotate the coordinate plane about the center.
-    """
-    return [v[0] - (IMAGE_WIDTH / 2) + 5, v[1] - (IMAGE_WIDTH / 2) - 5, v[2]]
-
-
-def normalize_coord_to_center(coord):
-    """
-    Shifts the origin from the corner to the center. This is needed to rotate the coordinate plane about the center.
-    """
-    centered = normalize_to_center([coord.x, coord.y, coord.z])
-    return Coord3d(coord.led_id, centered[0], centered[1], centered[2])
 
 
 def denormalize_from_center(v):
