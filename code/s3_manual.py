@@ -47,6 +47,36 @@ class TranslationMode(Enum):
         self.mirrored = mirrored
 
 
+def minus_x(coord: Coord3d) -> Coord3d:
+    coord.x -= adjustment_distance
+    return coord
+
+
+def plus_x(coord: Coord3d) -> Coord3d:
+    coord.x += adjustment_distance
+    return coord
+
+
+def minus_y(coord: Coord3d) -> Coord3d:
+    coord.y -= adjustment_distance
+    return coord
+
+
+def plus_y(coord: Coord3d) -> Coord3d:
+    coord.y += adjustment_distance
+    return coord
+
+
+def minus_z(coord: Coord3d) -> Coord3d:
+    coord.z -= adjustment_distance
+    return coord
+
+
+def plus_z(coord: Coord3d) -> Coord3d:
+    coord.z += adjustment_distance
+    return coord
+
+
 def translate(menu: Menu) -> None:
     global modified
 
@@ -83,13 +113,42 @@ def translate(menu: Menu) -> None:
 
         return view_x, view_z
 
-    to_coord_def = {
+    # Mapping from mode to coordinate function
+    to_coord_def: dict[TranslationMode, Callable[[Coord3d], tuple[int, int]]] = {
         TranslationMode.X: flatpos_xz,
         TranslationMode.X_NEG: flatpos_xz,
         TranslationMode.Y: flatpos_yz,
         TranslationMode.Y_NEG: flatpos_yz,
         TranslationMode.Z_X: flatpos_xz,
         TranslationMode.Z_Y: flatpos_yz,
+    }
+
+    # Mapping from mode to lambda which returns colored tree nodes
+    to_color_def: dict[TranslationMode, Callable[[int], dict[int, tuple[int, int, int]]]] = {
+        TranslationMode.X: lambda sid: color_tree(sid, lambda c: c.x),
+        TranslationMode.X_NEG: lambda sid: color_tree(sid, lambda c: c.x),
+        TranslationMode.Y: lambda sid: color_tree(sid, lambda c: c.y),
+        TranslationMode.Y_NEG: lambda sid: color_tree(sid, lambda c: c.y),
+        TranslationMode.Z_X: lambda sid: color_tree(sid, lambda c: c.z),
+        TranslationMode.Z_Y: lambda sid: color_tree(sid, lambda c: c.z),
+    }
+
+    to_up_pressed: dict[TranslationMode, Callable[[Coord3d], Coord3d]] = {
+        TranslationMode.X: plus_x,
+        TranslationMode.X_NEG: minus_x,
+        TranslationMode.Y: plus_y,
+        TranslationMode.Y_NEG: minus_y,
+        TranslationMode.Z_X: plus_z,
+        TranslationMode.Z_Y: plus_z,
+    }
+
+    to_down_pressed: dict[TranslationMode, Callable[[Coord3d], Coord3d]] = {
+        TranslationMode.X: minus_x,
+        TranslationMode.X_NEG: plus_x,
+        TranslationMode.Y: minus_y,
+        TranslationMode.Y_NEG: plus_y,
+        TranslationMode.Z_X: minus_z,
+        TranslationMode.Z_Y: minus_z,
     }
 
     clock = pygame.time.Clock()
@@ -118,15 +177,13 @@ def translate(menu: Menu) -> None:
                     selected_led_id = (selected_led_id - 1) % len(coords)
 
         if pygame.key.get_pressed()[pygame.K_DOWN]:
-            # TODO: Update these controls to work with the different modes
-            coords[selected_led_id].z -= adjustment_distance
+            to_down_pressed[mode](coords[selected_led_id])
             modified = True
         elif pygame.key.get_pressed()[pygame.K_UP]:
-            coords[selected_led_id].z += adjustment_distance
+            to_up_pressed[mode](coords[selected_led_id])
             modified = True
 
-        # TODO: Update the tree coloring to work with the different modes
-        pix = color_tree(selected_led_id, lambda c: c.z)
+        pix = to_color_def[mode](selected_led_id)
         render_tree(selected_led_id, to_coord_def[mode], pix, mode)
         clock.tick(fps)
 
