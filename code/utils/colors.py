@@ -85,3 +85,8 @@ def decode_rgb(v):
     g = v & 255
     r = v >> 8
     return (r, g, b)
+
+
+def decode_grb(v):
+    (r, g, b) = decode_rgb(v)
+    return (g, r, b)

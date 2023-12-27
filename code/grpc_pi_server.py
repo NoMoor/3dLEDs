@@ -10,7 +10,7 @@ import neopixel
 import time
 
 # LED strip configuration:
-from utils.colors import Color, decode_rgb
+from utils.colors import decode_grb
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +19,7 @@ LED_PIN = board.D18  # GPIO pin connected to the pixels (18 uses PWM!).
 # LED_PIN       = 10      # GPIO pin connected to the pixels (10 uses SPI /dev/spidev0.0).
 LED_FREQ_HZ = 800000  # LED signal frequency in hertz (usually 800khz)
 LED_DMA = 10  # DMA channel to use for generating signal (try 10)
-LED_BRIGHTNESS = .2  # Set to 0 for darkest and 1 for brightest
+LED_BRIGHTNESS = 1  # Set to 0 for darkest and 1 for brightest
 LED_INVERT = False  # True to invert the signal (when using NPN transistor level shift)
 LED_CHANNEL = 0  # set to '1' for GPIOs 13, 19, 41, 45 or 53
 
@@ -38,18 +38,17 @@ class LightsServicer(lights_pb2_grpc.LightsServicer):
         start = time.perf_counter()
         self.displayLights(request.pix)
         end = time.perf_counter()
-        print(f"Frame: {1 / (end - start)}")
 
         return lights_pb2.SetLightsResponse(is_successful=True)
 
     def displayLights(self, pix):
-        print(len(pix))
 
         for i in range(LED_COUNT):
             self._strip[i] = LED_OFF
 
         for idx, p in enumerate(pix):
-            self._strip[idx] = decode_rgb(p.rgb)
+            (g, r, b) = decode_grb(p.rgb)
+            self._strip[idx] = decode_grb(p.rgb)
         self._strip.show()
 
 

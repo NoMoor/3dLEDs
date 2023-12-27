@@ -126,12 +126,12 @@ def _focus(strip):
     """Focus test turns on the lights and steps through the focus settings to manually find the right one."""
     cam = _cam()
 
-    color_wipe(strip, color=LED_WHITE)
+    fill(strip, color=LED_WHITE)
     folder = "focus_captures"
     if not os.path.exists(folder):
         os.makedirs(folder)
 
-    for f in range(0, 256, 5):
+    for f in range(0, 100, 10):
         cam.set(cv2.CAP_PROP_FOCUS, f)
         print(f"Focusing at {f}")
 
@@ -162,7 +162,7 @@ def main():
 
     if args.light:
         print('Lighting the Tree')
-        fill(strip, color=(0, 50, 0))
+        fill(strip, color=(20, 0, 0))
         sys.exit(0)
 
     if not args.persist:
@@ -173,11 +173,14 @@ def main():
         if not os.path.exists(folder):
             os.makedirs(folder)
 
-        angles = [0, 45, 90, 135, 180, 225, 270, 315]
+        # angles = [0, 45, 90, 135, 180, 225, 270, 315]
+        angles = [315]
         cam = _cam()
         #         time.sleep(5) # Wait 10 seconds to make sure the camera is ready
+        fill(strip)
 
         for a in angles:
+            fill(strip)
             # Turn on reference pixels
             strip[0] = LED_WHITE
             strip[20] = (255, 0, 0)
